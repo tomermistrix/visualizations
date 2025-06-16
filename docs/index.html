@@ -46,17 +46,12 @@
     <!-- =================================================================== -->
     <div class="comparison-container">
         <h2>Comparison: My Result vs. H.264</h2>
-
-        <!-- The Beer Slider container -->
         <div id="slider1" class="beer-slider" data-beer-label="My Result">
-            <!-- Left-side video (your result) -->
             <video id="video-mine-1" loop muted autoplay playsinline>
                 <source src="assets/original_temp.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
-            
             <div class="beer-reveal" data-beer-label="H.264">
-                <!-- Right-side video (H.264) -->
                 <video id="video-h264-1" loop muted autoplay playsinline>
                     <source src="assets/original_temp.mp4" type="video/mp4">
                     Your browser does not support the video tag.
@@ -71,13 +66,11 @@
     <!-- =================================================================== -->
      <div class="comparison-container">
         <h2>Comparison: My Result vs. H.265</h2>
-
         <div id="slider2" class="beer-slider" data-beer-label="My Result">
             <video id="video-mine-2" loop muted autoplay playsinline>
                 <source src="assets/original_temp.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
-            
             <div class="beer-reveal" data-beer-label="H.265">
                 <video id="video-h265-2" loop muted autoplay playsinline>
                     <source src="assets/original_temp.mp4" type="video/mp4">
@@ -87,14 +80,16 @@
         </div>
     </div>
 
-    <!-- 2. Import the Beer Slider JavaScript -->
-    <script src="https://unpkg.com/beer-slider@0.9.1/dist/beer-slider.min.js"></script>
+    <!-- 2. Import the Beer Slider JavaScript (with defer) -->
+    <script src="https://unpkg.com/beer-slider@0.9.1/dist/beer-slider.min.js" defer></script>
 
-    <!-- 3. Custom JavaScript for Initialization and Synchronization -->
-    <script>
-        // --- This function syncs two videos ---
-        // It listens to the 'master' video's events (play, pause, seek)
-        // and applies them to the 'slave' video.
+    <!-- 3. Custom JavaScript for Initialization and Synchronization (with defer) -->
+    <script defer>
+        // Initialize Beer Sliders
+        new BeerSlider(document.getElementById('slider1'));
+        new BeerSlider(document.getElementById('slider2'));
+
+        // --- Reusable function to synchronize two video elements ---
         function syncVideos(masterId, slaveId) {
             const master = document.getElementById(masterId);
             const slave = document.getElementById(slaveId);
@@ -104,45 +99,22 @@
                 return;
             }
 
-            // Sync on play
-            master.addEventListener('play', () => {
-                if (slave.paused) {
-                    slave.play();
-                }
-            });
-
-            // Sync on pause
-            master.addEventListener('pause', () => {
-                if (!slave.paused) {
-                    slave.pause();
-                }
-            });
-
-            // Sync on seeking (when the user drags the timeline)
-            master.addEventListener('seeking', () => {
-                slave.currentTime = master.currentTime;
-            });
+            // Sync on play, pause, and seeking
+            master.addEventListener('play', () => { if (slave.paused) slave.play(); });
+            master.addEventListener('pause', () => { if (!slave.paused) slave.pause(); });
+            master.addEventListener('seeking', () => { slave.currentTime = master.currentTime; });
             
-            // A fallback sync to keep them aligned, especially after looping
-             master.addEventListener('timeupdate', () => {
-                // We only sync if the difference is more than a small threshold
-                // to avoid choppy playback from minor sync differences.
+            // Fallback sync to keep them aligned, especially after looping
+            master.addEventListener('timeupdate', () => {
                 if (Math.abs(master.currentTime - slave.currentTime) > 0.1) {
                     slave.currentTime = master.currentTime;
                 }
             });
         }
-
-        // --- Initialize the sliders and sync the videos ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize Beer Sliders
-            new BeerSlider(document.getElementById('slider1'));
-            new BeerSlider(document.getElementById('slider2'));
-
-            // Setup synchronization for each pair of videos
-            syncVideos('video-mine-1', 'video-h264-1');
-            syncVideos('video-mine-2', 'video-h265-2');
-        });
+        
+        // Setup synchronization for each pair of videos
+        syncVideos('video-mine-1', 'video-h264-1');
+        syncVideos('video-mine-2', 'video-h265-2');
     </script>
 </body>
 </html>
