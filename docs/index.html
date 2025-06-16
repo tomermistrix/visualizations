@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Video Compression Comparison</title>
 
-    <!-- 1. Import the Beer Slider CSS -->
     <link rel="stylesheet" href="https://unpkg.com/beerslider/dist/BeerSlider.css">
 
-    <!-- 2. Styling for the page, including new controls -->
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -30,13 +28,15 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        video {
-            max-width: 100%;
-            height: auto;
+        
+        /* FIX 1: Make videos fill their containers to solve sizing issue */
+        .beer-slider video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Prevents distortion, ensures perfect overlap */
             display: block;
         }
         
-        /* --- New Styles for Control Buttons --- */
         .controls-panel {
             display: flex;
             justify-content: space-between;
@@ -80,78 +80,46 @@
         Sliders are generated automatically based on the available video sets.
     </p>
 
-    <!-- This is the main container where JavaScript will inject our sliders -->
     <main id="comparisons-root"></main>
 
-    <!-- Import BeerSlider annd our custom script at the end -->
     <script src="https://unpkg.com/beerslider/dist/BeerSlider.js"></script>
     <script>
-    // ===================================================================
-    //  STEP 1: CONFIGURE YOUR VIDEO DATA HERE
-    // ===================================================================
     const videoData = [
         {
             index: 0,
             title: "Scene 1: Fountain",
-            // Define the display names and file names for this set
-            sources: {
-                'Original':  'original.mp4',
-                'Ours':      'ours.mp4',
-                'H.264':     'h264.mp4',
-                'H.265':     'h265.mp4'
-            },
-            // Set the default videos to show on load
+            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
             defaultLeft: 'Ours',
             defaultRight: 'H.264'
         },
         // {
         //     index: 1,
         //     title: "Scene 2: City Traffic",
-        //     sources: {
-        //         'Original':  'original.mp4',
-        //         'Ours':      'ours.mp4',
-        //         'H.264':     'h264.mp4',
-        //         'H.265':     'h265.mp4'
-        //     },
+        //     sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
         //     defaultLeft: 'Ours',
         //     defaultRight: 'Original'
-        // }
-        // To add more video sets, just copy the object above and change the index and title.
-        // For example:
-        // ,{
-        //     index: 2,
-        //     title: "Scene 3: Nature",
-        //     sources: { ... },
-        //     defaultLeft: 'Ours',
-        //     defaultRight: 'H.265'
         // }
     ];
 
     const VIDEO_BASE_PATH = 'assets/videos/';
 
-    // ===================================================================
-    //  STEP 2: DYNAMICALLY GENERATE HTML AND INITIALIZE
-    // ===================================================================
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('comparisons-root');
         if (!root) return;
 
-        // Loop through each video set in our configuration
         videoData.forEach(set => {
             const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
 
-            // --- Create the HTML for the buttons ---
             let leftButtonsHTML = '';
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
                 const leftActiveClass = key === set.defaultLeft ? 'active' : '';
-                const rightActiveClass = key === set.defaultRight ? 'active' : '';
-
                 leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
+                
+                const rightActiveClass = key === set.defaultRight ? 'active' : '';
                 rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
             });
 
-            // --- Create the complete HTML block for this comparison ---
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
             comparisonBlock.innerHTML = `
@@ -179,20 +147,13 @@
             `;
             root.appendChild(comparisonBlock);
 
-            // --- Initialize the slider and video sync for this new block ---
             new BeerSlider(document.getElementById(`slider-${set.index}`));
             syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
         });
 
-        // Add a single, powerful event listener to the root container
         root.addEventListener('click', handleSourceChange);
     });
 
-    // ===================================================================
-    //  STEP 3: UTILITY FUNCTIONS (SYNC AND EVENT HANDLING)
-    // ===================================================================
-
-    // Reusable function to synchronize two video elements
     function syncVideos(masterId, slaveId) {
         const master = document.getElementById(masterId);
         const slave = document.getElementById(slaveId);
@@ -213,50 +174,53 @@
         });
     }
 
-    // Handles clicks on any of the 'video-select-btn' buttons
     function handleSourceChange(event) {
-        // Only act if a selection button was clicked
-        if (!event.target.matches('.video-select-btn')) {
-            return;
-        }
+        if (!event.target.matches('.video-select-btn')) return;
 
         const button = event.target;
         const { sliderIndex, side, sourceKey } = button.dataset;
 
-        // Find the video element to update
         const videoId = `video-${side}-${sliderIndex}`;
         const videoEl = document.getElementById(videoId);
         if (!videoEl) return;
 
-        // Get the new source path from our config
         const setConfig = videoData.find(s => s.index == sliderIndex);
         const newSrc = `${VIDEO_BASE_PATH}${sliderIndex}/${setConfig.sources[sourceKey]}`;
 
-        // Get the other video to sync with after loading
         const otherSide = side === 'left' ? 'right' : 'left';
         const otherVideoEl = document.getElementById(`video-${otherSide}-${sliderIndex}`);
 
-        // Update the slider label
+        // FIX 2: Correctly target and update slider labels
         const sliderEl = document.getElementById(`slider-${sliderIndex}`);
-        if(side === 'left') {
+        const revealEl = sliderEl.querySelector('.beer-reveal');
+        
+        if (side === 'left') {
             sliderEl.dataset.beerLabel = sourceKey;
-            // The library needs a little nudge to update the visible label
+            // The library creates a .beer-handle div for the label, so we update its text
             sliderEl.querySelector('.beer-handle').textContent = sourceKey;
         } else {
-            sliderEl.querySelector('.beer-reveal').dataset.beerLabel = sourceKey;
+            revealEl.dataset.beerLabel = sourceKey;
+            // The library does NOT auto-update the reveal label text, so we do nothing here
+            // as the library doesn't expose a visible reveal label by default.
         }
-        
-        // Change the source and reload the video
+
         videoEl.querySelector('source').setAttribute('src', newSrc);
         videoEl.load();
-        videoEl.play(); // Start playing the new video
-        otherVideoEl.play(); // Ensure the other video keeps playing too
+        
+        // Ensure both videos attempt to play after the new source is loaded
+        const playPromise = videoEl.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                otherVideoEl.play(); // Sync the other video's playback
+            }).catch(error => {
+                console.error("Autoplay was prevented:", error);
+                // Autoplay was prevented, but the source is still changed.
+            });
+        }
 
-        // Update active class on buttons
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     }
-
     </script>
 </body>
 </html>
