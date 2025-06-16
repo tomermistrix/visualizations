@@ -121,10 +121,10 @@
             let leftButtonsHTML = '';
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
-                const leftActiveClass = key === set.defaultRight ? 'active' : '';
+                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
                 leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
                 
-                const rightActiveClass = key === set.defaultLeft ? 'active' : '';
+                const rightActiveClass = key === set.defaultRight ? 'active' : '';
                 rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
             });
 
