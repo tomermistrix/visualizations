@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Video Compression Demo</title>
+  <style>
+    body { font-family:sans-serif; margin:2rem; }
+    h1 { text-align:center; }
+    /* Slider container */
+    .slider-wrap { position: relative; width: 720px; margin: auto; }
+    video { display: block; width: 100%; height: auto;}
+    .top-video {
+      position: absolute; top:0; left:0;
+      overflow: hidden;
+      width: 50%; /* initial split */
+    }
+    .slider {
+      position: absolute; top:0; left: calc(50% - 1px);
+      width:2px; height:100%; background:#fff;
+      cursor: ew-resize;
+    }
+    /* Chart container */
+    #chart { max-width:720px; margin:3rem auto;}
+  </style>
+</head>
+<body>
+
+  <h1>Compression Slider: Ours vs. H.265</h1>
+  <div class="slider-wrap" id="videoSlider">
+    <video id="vidBottom" src="assets/original_temp.mp4" muted loop></video>
+    <div class="top-video" id="clipper">
+      <video id="vidTop" src="assets/original_temp.mp4" muted loop></video>
+    </div>
+    <div class="slider" id="handle"></div>
+  </div>
+  <p style="text-align:center;">
+    <button onclick="togglePlay()">▶️/⏸️ Play / Pause</button>
+  </p>
+
+  <h1>Rate–Distortion Curves</h1>
+  <canvas id="chart"></canvas>
+
+  <!-- Chart.js (via CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Our main JS -->
+  <script src="js/main.js"></script>
+</body>
+</html>
