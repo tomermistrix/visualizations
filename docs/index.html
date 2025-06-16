@@ -1,48 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <title>Video Compression Demo</title>
+  <meta charset="UTF-8" />
+  <title>Video Slider</title>
   <style>
-    body { font-family:sans-serif; margin:2rem; }
-    h1 { text-align:center; }
-    /* Slider container */
-    .slider-wrap { position: relative; width: 720px; margin: auto; }
-    video { display: block; width: 100%; height: auto;}
-    .top-video {
-      position: absolute; top:0; left:0;
-      overflow: hidden;
-      width: 50%; /* initial split */
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+      text-align: center;
     }
+
+    .slider-wrap {
+      position: relative;
+      width: 720px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+
+    .top-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      pointer-events: none;
+    }
+
     .slider {
-      position: absolute; top:0; left: calc(50% - 1px);
-      width:2px; height:100%; background:#fff;
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 3px;
+      background: red;
+      z-index: 10;
       cursor: ew-resize;
     }
-    /* Chart container */
-    #chart { max-width:720px; margin:3rem auto;}
+
+    #chart {
+      max-width: 720px;
+      margin: 3rem auto;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Compression Slider: Ours vs. H.265</h1>
-  <div class="slider-wrap" id="videoSlider">
-    <video id="vidBottom" src="assets/original_temp.mp4" muted loop></video>
-    <div class="top-video" id="clipper">
-      <video id="vidTop" src="assets/original_temp.mp4" muted loop></video>
+  <h1>Ours vs. H.265</h1>
+  <div class="slider-wrap" id="sliderContainer">
+    <video id="videoBottom" src="assets/original_temp.mp4" muted loop></video>
+    <div class="top-video" id="topWrapper">
+      <video id="videoTop" src="assets/original_temp.mp4" muted loop></video>
     </div>
-    <div class="slider" id="handle"></div>
+    <div class="slider" id="sliderHandle"></div>
   </div>
-  <p style="text-align:center;">
-    <button onclick="togglePlay()">▶️/⏸️ Play / Pause</button>
+  <p>
+    <button onclick="togglePlay()">▶️/⏸️ Play / Pause</button>
   </p>
 
-  <h1>Rate–Distortion Curves</h1>
+  <h1>RD Curves</h1>
   <canvas id="chart"></canvas>
 
-  <!-- Chart.js (via CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Our main JS -->
   <script src="js/main.js"></script>
 </body>
 </html>

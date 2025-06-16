@@ -1,32 +1,45 @@
-// 1) Video Slider Logic
-const clipper = document.getElementById('clipper');
-const handle  = document.getElementById('handle');
-const container = document.getElementById('videoSlider');
-
-let dragging = false;
-handle.addEventListener('mousedown', _=> dragging = true);
-document.addEventListener('mouseup',   _=> dragging = false);
-document.addEventListener('mousemove', e => {
-  if(!dragging) return;
-  const rect = container.getBoundingClientRect();
-  let x = e.clientX - rect.left;
-  x = Math.max(0, Math.min(rect.width, x));
-  const pct = x / rect.width * 100;
-  clipper.style.width = pct + '%';
-  handle.style.left  = `calc(${pct}% - 1px)`;
-});
-// Sync play/pause
-const vidTop    = document.getElementById('vidTop');
-const vidBottom = document.getElementById('vidBottom');
-function togglePlay(){
-  if(vidTop.paused) { vidTop.play(); vidBottom.play(); }
-  else              { vidTop.pause(); vidBottom.pause(); }
+// --- Video sync logic ---
+const videoTop = document.getElementById('videoTop');
+const videoBottom = document.getElementById('videoBottom');
+function togglePlay() {
+  if (videoTop.paused) {
+    videoTop.play();
+    videoBottom.play();
+  } else {
+    videoTop.pause();
+    videoBottom.pause();
+  }
 }
 
-// 2) RD Curves with Chart.js
+// --- Before/After slider ---
+const sliderHandle = document.getElementById('sliderHandle');
+const topWrapper = document.getElementById('topWrapper');
+const sliderContainer = document.getElementById('sliderContainer');
+
+let dragging = false;
+
+sliderHandle.addEventListener('mousedown', () => dragging = true);
+window.addEventListener('mouseup', () => dragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  const rect = sliderContainer.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+  x = Math.max(0, Math.min(rect.width, x));
+  const percent = (x / rect.width) * 100;
+  topWrapper.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+  sliderHandle.style.left = `${percent}%`;
+});
+
+// Set initial position
+window.addEventListener('load', () => {
+  topWrapper.style.clipPath = 'inset(0 50% 0 0)';
+  sliderHandle.style.left = '50%';
+});
+
+// --- Chart.js for RD curve ---
 fetch('assets/rd_data.json')
-  .then(r=>r.json())
-  .then(data=>{
+  .then(r => r.json())
+  .then(data => {
     const ctx = document.getElementById('chart').getContext('2d');
     new Chart(ctx, {
       type: 'line',
@@ -34,25 +47,46 @@ fetch('assets/rd_data.json')
         labels: data.ours.size,
         datasets: [
           {
-            label: 'PSNR • Ours', data: data.ours.psnr, fill:false
+            label: 'PSNR • Ours',
+            data: data.ours.psnr,
+            borderColor: 'green',
+            tension: 0.3
           },
           {
-            label: 'PSNR • H.264', data: data.h264.psnr, fill:false
+            label: 'PSNR • H.264',
+            data: data.h264.psnr,
+            borderColor: 'blue',
+            tension: 0.3
           },
           {
-            label: 'PSNR • H.265', data: data.h265.psnr, fill:false
+            label: 'PSNR • H.265',
+            data: data.h265.psnr,
+            borderColor: 'orange',
+            tension: 0.3
           }
         ]
       },
       options: {
         responsive: true,
-        scales: {
-          x: { title: { display:true, text:'File Size (KB)' } },
-          y: { title: { display:true, text:'PSNR (dB)'    } }
-        },
         plugins: {
-          title: { display:true, text:'Rate–Distortion: PSNR vs. Size' },
-          tooltip: { mode:'index', intersect:false }
+          title: {
+            display: true,
+            text: 'Rate–Distortion: PSNR vs. Size'
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'File Size (KB)'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'PSNR (dB)'
+            }
+          }
         }
       }
     });
