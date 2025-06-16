@@ -28,14 +28,17 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
+        
+        /* FIX 1: Make videos fill their containers to solve sizing issue */
         .beer-slider video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover; /* Prevents distortion, ensures perfect overlap */
             display: block;
         }
-        
-        
+        .beer-handle {
+            font-size: 0; /* This makes the text invisible */
+        }
         .controls-panel {
             display: flex;
             justify-content: space-between;
@@ -109,30 +112,28 @@
         videoData.forEach(set => {
             const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
 
-            // We now build the button HTML in two separate, clearer loops
-            const allSourceKeys = Object.keys(set.sources);
-
             let leftButtonsHTML = '';
-            allSourceKeys.forEach(key => {
-                const isActive = key === set.defaultLeft ? 'active' : '';
-                leftButtonsHTML += `<button class="video-select-btn ${isActive}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
-            });
-
             let rightButtonsHTML = '';
-            allSourceKeys.forEach(key => {
-                const isActive = key === set.defaultRight ? 'active' : '';
-                rightButtonsHTML += `<button class="video-select-btn ${isActive}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+            Object.keys(set.sources).forEach(key => {
+                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
+                leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
+                
+                const rightActiveClass = key === set.defaultRight ? 'active' : '';
+                rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
             });
 
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
-            // The data-beer-label is still needed for the library, but we hide it with CSS.
             comparisonBlock.innerHTML = `
                 <h2>${set.title}</h2>
                 <div id="slider-${set.index}" class="beer-slider" data-beer-label="${set.defaultLeft}">
-                    <video id="video-left-${set.index}" loop muted autoplay playsinline></video>
+                    <video id="video-left-${set.index}" loop muted autoplay playsinline>
+                        <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
+                    </video>
                     <div class="beer-reveal" data-beer-label="${set.defaultRight}">
-                        <video id="video-right-${set.index}" loop muted autoplay playsinline></video>
+                        <video id="video-right-${set.index}" loop muted autoplay playsinline>
+                            <source src="${videoSetBasePath}${set.sources[set.defaultRight]}" type="video/mp4">
+                        </video>
                     </div>
                 </div>
                 <div class="controls-panel">
@@ -147,12 +148,6 @@
                 </div>
             `;
             root.appendChild(comparisonBlock);
-
-            // Set initial sources dynamically after creating elements
-            const leftVideo = document.getElementById(`video-left-${set.index}`);
-            const rightVideo = document.getElementById(`video-right-${set.index}`);
-            leftVideo.src = `${videoSetBasePath}${set.sources[set.defaultLeft]}`;
-            rightVideo.src = `${videoSetBasePath}${set.sources[set.defaultRight]}`;
 
             new BeerSlider(document.getElementById(`slider-${set.index}`));
             syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
@@ -185,7 +180,6 @@
         if (!event.target.matches('.video-select-btn')) return;
 
         const button = event.target;
-        // FIX #1: The core of the logic fix is ensuring this data is used correctly.
         const { sliderIndex, side, sourceKey } = button.dataset;
 
         const videoId = `video-${side}-${sliderIndex}`;
@@ -194,22 +188,36 @@
 
         const setConfig = videoData.find(s => s.index == sliderIndex);
         const newSrc = `${VIDEO_BASE_PATH}${sliderIndex}/${setConfig.sources[sourceKey]}`;
-        
-        // Update the slider's data attribute (for library internals), but we won't show it.
+
+        const otherSide = side === 'left' ? 'right' : 'left';
+        const otherVideoEl = document.getElementById(`video-${otherSide}-${sliderIndex}`);
+
+        // FIX 2: Correctly target and update slider labels
         const sliderEl = document.getElementById(`slider-${sliderIndex}`);
+        const revealEl = sliderEl.querySelector('.beer-reveal');
+        
         if (side === 'left') {
             sliderEl.dataset.beerLabel = sourceKey;
+            // The library creates a .beer-handle div for the label, so we update its text
+            sliderEl.querySelector('.beer-handle').textContent = sourceKey;
         } else {
-            sliderEl.querySelector('.beer-reveal').dataset.beerLabel = sourceKey;
+            revealEl.dataset.beerLabel = sourceKey;
+            // The library does NOT auto-update the reveal label text, so we do nothing here
+            // as the library doesn't expose a visible reveal label by default.
         }
 
-        // Change the source and reload the video
-        videoEl.src = newSrc;
+        videoEl.querySelector('source').setAttribute('src', newSrc);
         videoEl.load();
         
+        // Ensure both videos attempt to play after the new source is loaded
         const playPromise = videoEl.play();
         if (playPromise !== undefined) {
-            playPromise.catch(error => console.error("Autoplay was prevented:", error));
+            playPromise.then(() => {
+                otherVideoEl.play(); // Sync the other video's playback
+            }).catch(error => {
+                console.error("Autoplay was prevented:", error);
+                // Autoplay was prevented, but the source is still changed.
+            });
         }
 
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
