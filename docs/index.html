@@ -1,74 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Video Slider</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 2rem;
-      text-align: center;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Video Compression Project</title>
 
-    .slider-wrap {
-      position: relative;
-      width: 720px;
-      margin: 0 auto;
-      overflow: hidden;
-    }
+    <!-- 1. Import the Beer Slider CSS -->
+    <link href="https://unpkg.com/beer-slider@0.9.1/dist/beer-slider.min.css" rel="stylesheet">
 
-    video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: auto;
-      object-fit: cover;
-    }
-
-    .top-video {
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      width: 100%;
-      pointer-events: none;
-    }
-
-    .slider {
-      position: absolute;
-      top: 0;
-      height: 100%;
-      width: 3px;
-      background: red;
-      z-index: 10;
-      cursor: ew-resize;
-    }
-
-    #chart {
-      max-width: 720px;
-      margin: 3rem auto;
-    }
-  </style>
+    <!-- Basic styling for the page -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+        h1, h2 {
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: .3em;
+        }
+        .comparison-container {
+            margin-bottom: 40px;
+        }
+        video {
+            /* Ensures videos are responsive and don't overflow their container */
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+    </style>
 </head>
 <body>
 
-  <h1>Ours vs. H.265</h1>
-  <div class="slider-wrap" id="sliderContainer">
-    <video id="videoBottom" src="assets/original_temp.mp4" muted loop></video>
-    <div class="top-video" id="topWrapper">
-      <video id="videoTop" src="assets/original_temp.mp4" muted loop></video>
+    <h1>My Awesome Video Compression Method</h1>
+    <p>
+        This page demonstrates the visual quality of my novel video compression algorithm compared to industry standards like H.264 and H.265.
+        Move the slider to compare the results. The videos are synchronized and looped for easy comparison.
+    </p>
+
+    <!-- =================================================================== -->
+    <!-- COMPARISON 1: My Result vs. H.264                                   -->
+    <!-- =================================================================== -->
+    <div class="comparison-container">
+        <h2>Comparison: My Result vs. H.264</h2>
+
+        <!-- The Beer Slider container -->
+        <div id="slider1" class="beer-slider" data-beer-label="My Result">
+            <!-- Left-side video (your result) -->
+            <video id="video-mine-1" loop muted autoplay playsinline>
+                <source src="assets/original_temp.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            
+            <div class="beer-reveal" data-beer-label="H.264">
+                <!-- Right-side video (H.264) -->
+                <video id="video-h264-1" loop muted autoplay playsinline>
+                    <source src="assets/original_temp.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
     </div>
-    <div class="slider" id="sliderHandle"></div>
-  </div>
-  <p>
-    <button onclick="togglePlay()">▶️/⏸️ Play / Pause</button>
-  </p>
 
-  <h1>RD Curves</h1>
-  <canvas id="chart"></canvas>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="js/main.js"></script>
+    <!-- =================================================================== -->
+    <!-- COMPARISON 2: My Result vs. H.265                                   -->
+    <!-- =================================================================== -->
+     <div class="comparison-container">
+        <h2>Comparison: My Result vs. H.265</h2>
+
+        <div id="slider2" class="beer-slider" data-beer-label="My Result">
+            <video id="video-mine-2" loop muted autoplay playsinline>
+                <source src="assets/original_temp.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            
+            <div class="beer-reveal" data-beer-label="H.265">
+                <video id="video-h265-2" loop muted autoplay playsinline>
+                    <source src="assets/original_temp.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Import the Beer Slider JavaScript -->
+    <script src="https://unpkg.com/beer-slider@0.9.1/dist/beer-slider.min.js"></script>
+
+    <!-- 3. Custom JavaScript for Initialization and Synchronization -->
+    <script>
+        // --- This function syncs two videos ---
+        // It listens to the 'master' video's events (play, pause, seek)
+        // and applies them to the 'slave' video.
+        function syncVideos(masterId, slaveId) {
+            const master = document.getElementById(masterId);
+            const slave = document.getElementById(slaveId);
+
+            if (!master || !slave) {
+                console.error("Could not find videos with IDs:", masterId, slaveId);
+                return;
+            }
+
+            // Sync on play
+            master.addEventListener('play', () => {
+                if (slave.paused) {
+                    slave.play();
+                }
+            });
+
+            // Sync on pause
+            master.addEventListener('pause', () => {
+                if (!slave.paused) {
+                    slave.pause();
+                }
+            });
+
+            // Sync on seeking (when the user drags the timeline)
+            master.addEventListener('seeking', () => {
+                slave.currentTime = master.currentTime;
+            });
+            
+            // A fallback sync to keep them aligned, especially after looping
+             master.addEventListener('timeupdate', () => {
+                // We only sync if the difference is more than a small threshold
+                // to avoid choppy playback from minor sync differences.
+                if (Math.abs(master.currentTime - slave.currentTime) > 0.1) {
+                    slave.currentTime = master.currentTime;
+                }
+            });
+        }
+
+        // --- Initialize the sliders and sync the videos ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Beer Sliders
+            new BeerSlider(document.getElementById('slider1'));
+            new BeerSlider(document.getElementById('slider2'));
+
+            // Setup synchronization for each pair of videos
+            syncVideos('video-mine-1', 'video-h264-1');
+            syncVideos('video-mine-2', 'video-h265-2');
+        });
+    </script>
 </body>
 </html>
