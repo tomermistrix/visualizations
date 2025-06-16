@@ -121,10 +121,10 @@
             let leftButtonsHTML = '';
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
-                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
+                const leftActiveClass = key === set.defaultRight ? 'active' : '';
                 leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
                 
-                const rightActiveClass = key === set.defaultRight ? 'active' : '';
+                const rightActiveClass = key === set.defaultLeft ? 'active' : '';
                 rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
             });
 
@@ -155,8 +155,8 @@
             `;
             root.appendChild(comparisonBlock);
 
-            const rightVideo = document.getElementById(`video-left-${set.index}`);
-            const leftVideo = document.getElementById(`video-right-${set.index}`);
+            const leftVideo = document.getElementById(`video-left-${set.index}`);
+            const rightVideo = document.getElementById(`video-right-${set.index}`);
             const sliderElement = document.getElementById(`slider-${set.index}`);
 
             let videosReady = 0;
