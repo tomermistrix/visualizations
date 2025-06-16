@@ -155,8 +155,25 @@
             `;
             root.appendChild(comparisonBlock);
 
-            new BeerSlider(document.getElementById(`slider-${set.index}`));
-            syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
+            const leftVideo = document.getElementById(`video-left-${set.index}`);
+            const rightVideo = document.getElementById(`video-right-${set.index}`);
+            const sliderElement = document.getElementById(`slider-${set.index}`);
+
+            let videosReady = 0;
+            const onVideoReady = () => {
+                videosReady++;
+                // Only initialize when BOTH videos have loaded their metadata
+                if (videosReady === 2) {
+                    console.log(`Initializing slider ${set.index} now that videos are ready.`);
+                    new BeerSlider(sliderElement);
+                    syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
+                }
+            };
+
+            // Attach the event listener to both videos
+            leftVideo.addEventListener('loadedmetadata', onVideoReady);
+            rightVideo.addEventListener('loadedmetadata', onVideoReady);
+            // syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
         });
 
         root.addEventListener('click', handleSourceChange);
