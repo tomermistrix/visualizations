@@ -238,9 +238,14 @@
                 hiddenVideo.load();
             }
         });
+        root.addEventListener('click', handleSourceChange);
+        
     });
+function syncVideos(masterId, slaveId) {
+        const master = document.getElementById(masterId);
+        const slave = document.getElementById(slaveId);
+        if (!master || !slave) return;
 
-    function syncVideos(master, slave) {
         ['play', 'pause', 'seeking'].forEach(event => {
             master.addEventListener(event, () => {
                 if(event === 'play' && slave.paused) slave.play();
@@ -248,11 +253,60 @@
                 if(event === 'seeking') slave.currentTime = master.currentTime;
             });
         });
+
         master.addEventListener('timeupdate', () => {
             if (Math.abs(master.currentTime - slave.currentTime) > 0.1) {
                 slave.currentTime = master.currentTime;
             }
         });
+    }
+
+    function handleSourceChange(event) {
+        if (!event.target.matches('.video-select-btn')) return;
+
+        const button = event.target;
+        const { sliderIndex, side, sourceKey } = button.dataset;
+
+        const videoId = `video-${side}-${sliderIndex}`;
+        const videoEl = document.getElementById(videoId);
+        if (!videoEl) return;
+
+        const setConfig = videoData.find(s => s.index == sliderIndex);
+        const newSrc = `${VIDEO_BASE_PATH}${sliderIndex}/${setConfig.sources[sourceKey]}`;
+
+        const otherSide = side === 'left' ? 'right' : 'left';
+        const otherVideoEl = document.getElementById(`video-${otherSide}-${sliderIndex}`);
+
+        // FIX 2: Correctly target and update slider labels
+        const sliderEl = document.getElementById(`slider-${sliderIndex}`);
+        const revealEl = sliderEl.querySelector('.beer-reveal');
+        
+        if (side === 'left') {
+            sliderEl.dataset.beerLabel = sourceKey;
+            // The library creates a .beer-handle div for the label, so we update its text
+            sliderEl.querySelector('.beer-handle').textContent = sourceKey;
+        } else {
+            revealEl.dataset.beerLabel = sourceKey;
+            // The library does NOT auto-update the reveal label text, so we do nothing here
+            // as the library doesn't expose a visible reveal label by default.
+        }
+
+        videoEl.querySelector('source').setAttribute('src', newSrc);
+        videoEl.load();
+        
+        // Ensure both videos attempt to play after the new source is loaded
+        const playPromise = videoEl.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                otherVideoEl.play(); // Sync the other video's playback
+            }).catch(error => {
+                console.error("Autoplay was prevented:", error);
+                // Autoplay was prevented, but the source is still changed.
+            });
+        }
+
+        button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
     }
     </script>
 </body>
