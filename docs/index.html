@@ -181,6 +181,18 @@
         if (!root) return;
 
         videoData.forEach(set => {
+            const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
+
+            let leftButtonsHTML = '';
+            let rightButtonsHTML = '';
+            Object.keys(set.sources).forEach(key => {
+                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
+                rightButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
+                
+                const rightActiveClass = key === set.defaultRight ? 'active' : '';
+                leftButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+            });
+
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
 
