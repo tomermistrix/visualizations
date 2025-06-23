@@ -3,47 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Video Compression Comparison</title>
-
+    <title>Video Compression Comparison</title>
     <link rel="stylesheet" href="https://unpkg.com/beerslider/dist/BeerSlider.css">
-
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            font-family: sans-serif;
+            background: #f6f8fa;
             max-width: 960px;
             margin: 20px auto;
             padding: 0 15px;
-            background-color: #f6f8fa;
-        }
-        h1, h2, h3 {
-            border-bottom: 1px solid #eaecef;
-            padding-bottom: .3em;
         }
         .comparison-container {
-            margin-bottom: 60px;
-            background-color: #fff;
+            background: #fff;
             padding: 20px;
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
         }
-        
-        /* FIX 1: Make videos fill their containers to solve sizing issue */
-        .beer-slider video {
+        .comparison-row {
+            display: flex;
+            gap: 20px;
+        }
+        .slider-box, .canvas-box {
+            flex: 1;
+        }
+        .canvas-box canvas {
             width: 100%;
-            height: 100%;
-            object-fit: cover; /* Prevents distortion, ensures perfect overlap */
+            height: auto;
+            border: 1px solid #ccc;
             display: block;
         }
-        .beer-reveal video {
+        .beer-slider video, .beer-reveal video {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Prevents distortion, ensures perfect overlap */
+            object-fit: cover;
             display: block;
         }
         .beer-handle {
-            font-size: 0; /* This makes the text invisible */
+            font-size: 0;
         }
         .controls-panel {
             display: flex;
@@ -53,24 +50,14 @@
             background-color: #f1f1f1;
             border-radius: 4px;
         }
-        .controls-panel div h3 {
-            margin: 0 0 10px 0;
-            font-size: 1em;
-            text-align: center;
-            border: none;
-        }
         .video-select-btn {
-            padding: 8px 12px;
+            padding: 6px 10px;
             border: 1px solid #ccc;
             background-color: #fff;
             cursor: pointer;
             border-radius: 4px;
             font-size: 0.9em;
             margin: 0 2px;
-            transition: background-color 0.2s, border-color 0.2s;
-        }
-        .video-select-btn:hover {
-            background-color: #eef;
         }
         .video-select-btn.active {
             background-color: #0366d6;
@@ -78,120 +65,37 @@
             border-color: #0366d6;
             font-weight: bold;
         }
-        .comparison-row {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
-        .slider-box, .canvas-box {
-            flex: 1 1 50%;
-        }
-        .canvas-box canvas {
-            display: block;
-            width: 100%;
-            height: auto;
-            border: 1px solid #ccc;
-        }
     </style>
 </head>
 <body>
-
-    <h1>Dynamic Video Compression Comparison</h1>
-    <p>
-        Use the buttons below each slider to dynamically select which videos to compare. 
-        Sliders are generated automatically based on the available video sets.
-    </p>
-
-    <main id="comparisons-root"></main>
-
+    <h1>Video Compression Comparison</h1>
+    <div id="comparisons-root"></div>
     <script src="https://unpkg.com/beerslider/dist/BeerSlider.js"></script>
     <script>
     const videoData = [
         {
             index: 0,
             title: "Sheep",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
+            sources: {
+                'Original': 'original.mp4',
+                'Ours': 'ours.mp4',
+                'H.264': 'h264.mp4',
+                'H.265': 'h265.mp4'
+            },
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
-            frameIdx: 10,
-            bbox: [0, 0, 100, 100]
-        },
-        {
-            index: 1,
-            title: "Drop of Water",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        {
-            index: 2,
-            title: "Model",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        {
-            index: 3,
-            title: "Clay",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        {
-            index: 4,
-            title: "River",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        {
-            index: 5,
-            title: "Model",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        {
-            index: 6,
-            title: "Rain",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        {
-            index: 7,
-            title: "Interview",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264'
-        },
-        // {
-        //     index: 8,
-        //     title: "Interview",
-        //     sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-        //     defaultLeft: 'Ours',
-        //     defaultRight: 'H.264'
-        // }
+            frameIdx: 5,
+            bbox: [50, 100, 200, 200]
+        }
     ];
 
     const VIDEO_BASE_PATH = 'assets/videos/';
 
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('comparisons-root');
-        if (!root) return;
 
         videoData.forEach(set => {
             const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
-
-            let leftButtonsHTML = '';
-            let rightButtonsHTML = '';
-            Object.keys(set.sources).forEach(key => {
-                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
-                rightButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
-                
-                const rightActiveClass = key === set.defaultRight ? 'active' : '';
-                leftButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
-            });
 
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
@@ -214,38 +118,36 @@
                 </div>
             `;
 
-            row.appendChild(sliderBox);
-
-            // === Canvas generation block ===
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
             const canvas = document.createElement('canvas');
             canvas.id = `canvas-${set.index}`;
             canvasBox.appendChild(canvas);
+
+            row.appendChild(sliderBox);
             row.appendChild(canvasBox);
-
-            comparisonBlock.appendChild(document.createElement('h2')).textContent = set.title;
             comparisonBlock.appendChild(row);
+            root.appendChild(comparisonBlock);
 
-            // === Controls panel stays the same ===
-            const controlsHTML = `
-                <div class="controls-panel">
-                    <div class="left-controls">
-                        <h3>Left Video</h3>
-                        ${leftButtonsHTML}
-                    </div>
-                    <div class="right-controls">
-                        <h3>Right Video</h3>
-                        ${rightButtonsHTML}
-                    </div>
-                </div>
-            `;
-            comparisonBlock.insertAdjacentHTML('beforeend', controlsHTML);
+            const leftVideo = document.getElementById(`video-left-${set.index}`);
+            const rightVideo = document.getElementById(`video-right-${set.index}`);
+            const sliderElement = document.getElementById(`slider-${set.index}`);
+
+            let videosReady = 0;
+            const onVideoReady = () => {
+                if (++videosReady === 2) {
+                    new BeerSlider(sliderElement);
+                    syncVideos(leftVideo, rightVideo);
+                }
+            };
+
+            leftVideo.addEventListener('loadedmetadata', onVideoReady);
+            rightVideo.addEventListener('loadedmetadata', onVideoReady);
+
+            // Generate canvas preview with bbox
             if (set.bbox && set.frameIdx !== undefined) {
                 const [x, y, w, h] = set.bbox;
-                const canvas = comparisonBlock.querySelector(`#canvas-${set.index}`);
                 const ctx = canvas.getContext('2d');
-
                 const hiddenVideo = document.createElement('video');
                 hiddenVideo.src = `${videoSetBasePath}${set.sources['Original']}`;
                 hiddenVideo.crossOrigin = 'anonymous';
@@ -254,16 +156,14 @@
                 document.body.appendChild(hiddenVideo);
 
                 hiddenVideo.addEventListener('loadedmetadata', () => {
-                    hiddenVideo.currentTime = set.frameIdx / 30; // adjust if not 30 FPS
+                    hiddenVideo.currentTime = set.frameIdx / 30; // assume 30fps
                 });
 
                 hiddenVideo.addEventListener('seeked', () => {
                     const vw = hiddenVideo.videoWidth;
                     const vh = hiddenVideo.videoHeight;
-
                     canvas.width = vw;
                     canvas.height = vh;
-
                     ctx.drawImage(hiddenVideo, 0, 0, vw, vh);
                     ctx.strokeStyle = 'red';
                     ctx.lineWidth = 2;
@@ -272,36 +172,10 @@
 
                 hiddenVideo.load();
             }
-
-            const leftVideo = document.getElementById(`video-left-${set.index}`);
-            const rightVideo = document.getElementById(`video-right-${set.index}`);
-            const sliderElement = document.getElementById(`slider-${set.index}`);
-
-            let videosReady = 0;
-            const onVideoReady = () => {
-                videosReady++;
-                // Only initialize when BOTH videos have loaded their metadata
-                if (videosReady === 2) {
-                    console.log(`Initializing slider ${set.index} now that videos are ready.`);
-                    new BeerSlider(sliderElement);
-                    syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
-                }
-            };
-
-            // Attach the event listener to both videos
-            leftVideo.addEventListener('loadedmetadata', onVideoReady);
-            rightVideo.addEventListener('loadedmetadata', onVideoReady);
-            // syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
         });
-
-        root.addEventListener('click', handleSourceChange);
     });
 
-    function syncVideos(masterId, slaveId) {
-        const master = document.getElementById(masterId);
-        const slave = document.getElementById(slaveId);
-        if (!master || !slave) return;
-
+    function syncVideos(master, slave) {
         ['play', 'pause', 'seeking'].forEach(event => {
             master.addEventListener(event, () => {
                 if(event === 'play' && slave.paused) slave.play();
@@ -309,60 +183,11 @@
                 if(event === 'seeking') slave.currentTime = master.currentTime;
             });
         });
-
         master.addEventListener('timeupdate', () => {
             if (Math.abs(master.currentTime - slave.currentTime) > 0.1) {
                 slave.currentTime = master.currentTime;
             }
         });
-    }
-
-    function handleSourceChange(event) {
-        if (!event.target.matches('.video-select-btn')) return;
-
-        const button = event.target;
-        const { sliderIndex, side, sourceKey } = button.dataset;
-
-        const videoId = `video-${side}-${sliderIndex}`;
-        const videoEl = document.getElementById(videoId);
-        if (!videoEl) return;
-
-        const setConfig = videoData.find(s => s.index == sliderIndex);
-        const newSrc = `${VIDEO_BASE_PATH}${sliderIndex}/${setConfig.sources[sourceKey]}`;
-
-        const otherSide = side === 'left' ? 'right' : 'left';
-        const otherVideoEl = document.getElementById(`video-${otherSide}-${sliderIndex}`);
-
-        // FIX 2: Correctly target and update slider labels
-        const sliderEl = document.getElementById(`slider-${sliderIndex}`);
-        const revealEl = sliderEl.querySelector('.beer-reveal');
-        
-        if (side === 'left') {
-            sliderEl.dataset.beerLabel = sourceKey;
-            // The library creates a .beer-handle div for the label, so we update its text
-            sliderEl.querySelector('.beer-handle').textContent = sourceKey;
-        } else {
-            revealEl.dataset.beerLabel = sourceKey;
-            // The library does NOT auto-update the reveal label text, so we do nothing here
-            // as the library doesn't expose a visible reveal label by default.
-        }
-
-        videoEl.querySelector('source').setAttribute('src', newSrc);
-        videoEl.load();
-        
-        // Ensure both videos attempt to play after the new source is loaded
-        const playPromise = videoEl.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                otherVideoEl.play(); // Sync the other video's playback
-            }).catch(error => {
-                console.error("Autoplay was prevented:", error);
-                // Autoplay was prevented, but the source is still changed.
-            });
-        }
-
-        button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
     }
     </script>
 </body>
