@@ -98,7 +98,9 @@
             title: "Sheep",
             sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
             defaultLeft: 'Ours',
-            defaultRight: 'H.264'
+            defaultRight: 'H.264',
+            frameIdx: 10,
+            bbox: [0, 0, 100, 100]
         },
         {
             index: 1,
@@ -203,6 +205,54 @@
                 </div>
             `;
             root.appendChild(comparisonBlock);
+            if (set.bbox && set.frameIdx !== undefined) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 640; // You can adjust based on your video size
+                canvas.height = 360;
+                canvas.style.border = '1px solid #ccc';
+                canvas.style.display = 'block';
+                canvas.style.marginTop = '1rem';
+
+                const label = document.createElement('div');
+                label.innerHTML = '<strong>Reference Frame with Highlighted Region</strong>';
+                label.style.marginBottom = '0.5rem';
+
+                const wrapper = document.createElement('div');
+                wrapper.style.textAlign = 'center';
+                wrapper.appendChild(label);
+                wrapper.appendChild(canvas);
+                comparisonBlock.insertBefore(wrapper, comparisonBlock.firstChild);
+
+                // Load video element (off-screen)
+                const hiddenVideo = document.createElement('video');
+                hiddenVideo.src = `${videoSetBasePath}${set.sources['Original']}`;
+                hiddenVideo.crossOrigin = 'anonymous';
+                hiddenVideo.style.display = 'none';
+                hiddenVideo.muted = true;
+                document.body.appendChild(hiddenVideo);
+
+                hiddenVideo.addEventListener('loadeddata', () => {
+                    // Convert frame index to time in seconds
+                    const fps = 30; // update if your videos have different FPS
+                    hiddenVideo.currentTime = set.frameIdx / fps;
+                });
+
+                hiddenVideo.addEventListener('seeked', () => {
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+
+                    const scaleX = canvas.width / hiddenVideo.videoWidth;
+                    const scaleY = canvas.height / hiddenVideo.videoHeight;
+
+                    const [x, y, w, h] = set.bbox;
+                    ctx.strokeStyle = 'red';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x * scaleX, y * scaleY, w * scaleX, h * scaleY);
+                });
+
+                // Start loading video
+                hiddenVideo.load();
+                }
 
             const leftVideo = document.getElementById(`video-left-${set.index}`);
             const rightVideo = document.getElementById(`video-right-${set.index}`);
