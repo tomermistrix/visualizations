@@ -78,6 +78,20 @@
             border-color: #0366d6;
             font-weight: bold;
         }
+        .comparison-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .slider-box, .canvas-box {
+            flex: 1 1 50%;
+        }
+        .canvas-box canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
     </style>
 </head>
 <body>
@@ -167,22 +181,15 @@
         if (!root) return;
 
         videoData.forEach(set => {
-            const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
-
-            let leftButtonsHTML = '';
-            let rightButtonsHTML = '';
-            Object.keys(set.sources).forEach(key => {
-                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
-                rightButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
-                
-                const rightActiveClass = key === set.defaultRight ? 'active' : '';
-                leftButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
-            });
-
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
-            comparisonBlock.innerHTML = `
-                <h2>${set.title}</h2>
+
+            const row = document.createElement('div');
+            row.className = 'comparison-row';
+
+            const sliderBox = document.createElement('div');
+            sliderBox.className = 'slider-box';
+            sliderBox.innerHTML = `
                 <div id="slider-${set.index}" class="beer-slider" data-beer-label="${set.defaultLeft}">
                     <video id="video-left-${set.index}" loop muted autoplay playsinline>
                         <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
@@ -193,6 +200,23 @@
                         </video>
                     </div>
                 </div>
+            `;
+
+            row.appendChild(sliderBox);
+
+            // === Canvas generation block ===
+            const canvasBox = document.createElement('div');
+            canvasBox.className = 'canvas-box';
+            const canvas = document.createElement('canvas');
+            canvas.id = `canvas-${set.index}`;
+            canvasBox.appendChild(canvas);
+            row.appendChild(canvasBox);
+
+            comparisonBlock.appendChild(document.createElement('h2')).textContent = set.title;
+            comparisonBlock.appendChild(row);
+
+            // === Controls panel stays the same ===
+            const controlsHTML = `
                 <div class="controls-panel">
                     <div class="left-controls">
                         <h3>Left Video</h3>
@@ -204,26 +228,12 @@
                     </div>
                 </div>
             `;
-            root.appendChild(comparisonBlock);
+            comparisonBlock.insertAdjacentHTML('beforeend', controlsHTML);
             if (set.bbox && set.frameIdx !== undefined) {
-                const canvas = document.createElement('canvas');
-                canvas.width = 640; // You can adjust based on your video size
-                canvas.height = 360;
-                canvas.style.border = '1px solid #ccc';
-                canvas.style.display = 'block';
-                canvas.style.marginTop = '1rem';
+                const [x, y, w, h] = set.bbox;
+                const canvas = comparisonBlock.querySelector(`#canvas-${set.index}`);
+                const ctx = canvas.getContext('2d');
 
-                const label = document.createElement('div');
-                label.innerHTML = '<strong>Reference Frame with Highlighted Region</strong>';
-                label.style.marginBottom = '0.5rem';
-
-                const wrapper = document.createElement('div');
-                wrapper.style.textAlign = 'center';
-                wrapper.appendChild(label);
-                wrapper.appendChild(canvas);
-                comparisonBlock.insertBefore(wrapper, comparisonBlock.firstChild);
-
-                // Load video element (off-screen)
                 const hiddenVideo = document.createElement('video');
                 hiddenVideo.src = `${videoSetBasePath}${set.sources['Original']}`;
                 hiddenVideo.crossOrigin = 'anonymous';
@@ -231,28 +241,25 @@
                 hiddenVideo.muted = true;
                 document.body.appendChild(hiddenVideo);
 
-                hiddenVideo.addEventListener('loadeddata', () => {
-                    // Convert frame index to time in seconds
-                    const fps = 30; // update if your videos have different FPS
-                    hiddenVideo.currentTime = set.frameIdx / fps;
+                hiddenVideo.addEventListener('loadedmetadata', () => {
+                    hiddenVideo.currentTime = set.frameIdx / 30; // adjust if not 30 FPS
                 });
 
                 hiddenVideo.addEventListener('seeked', () => {
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+                    const vw = hiddenVideo.videoWidth;
+                    const vh = hiddenVideo.videoHeight;
 
-                    const scaleX = canvas.width / hiddenVideo.videoWidth;
-                    const scaleY = canvas.height / hiddenVideo.videoHeight;
+                    canvas.width = vw;
+                    canvas.height = vh;
 
-                    const [x, y, w, h] = set.bbox;
+                    ctx.drawImage(hiddenVideo, 0, 0, vw, vh);
                     ctx.strokeStyle = 'red';
                     ctx.lineWidth = 2;
-                    ctx.strokeRect(x * scaleX, y * scaleY, w * scaleX, h * scaleY);
+                    ctx.strokeRect(x, y, w, h);
                 });
 
-                // Start loading video
                 hiddenVideo.load();
-                }
+            }
 
             const leftVideo = document.getElementById(`video-left-${set.index}`);
             const rightVideo = document.getElementById(`video-right-${set.index}`);
