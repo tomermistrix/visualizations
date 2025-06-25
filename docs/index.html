@@ -25,24 +25,27 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 40px;
+            /* Placeholder height to prevent layout shift during lazy-loading */
+            min-height: 400px;
         }
-        /* NEW: Styles for the two-row structure */
         .top-row, .bottom-row {
             display: flex;
             gap: 20px;
         }
         .bottom-row {
-            margin-top: 10px; /* Space between slider and controls */
+            margin-top: 10px;
         }
         .top-row > div, .bottom-row > div {
-            flex: 1; /* Make columns in each row equal width */
+            flex: 1;
         }
         .canvas-box canvas {
             width: 100%;
-            height: 100%; /* This now works because the parent is stretched to the correct height */
+            height: 100%;
             border: 1px solid #ccc;
             display: block;
-            object-fit: cover; /* Ensures the drawn image covers the canvas area */
+            object-fit: cover;
+            /* Add a subtle background for the loading state */
+            background-color: #f0f0f0;
         }
         .beer-slider video, .beer-reveal video {
             width: 100%;
@@ -90,7 +93,11 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            // Example of multiple bounding boxes
+            bbox: [
+                [0, 0, 100, 100], // Box 1
+                [50, 50, 150, 150]  // Box 2
+            ]
         },
         {
             index: 1,
@@ -99,7 +106,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] // Single box still works
         },
         {
             index: 2,
@@ -108,7 +115,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] 
         },
         {
             index: 3,
@@ -117,7 +124,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] 
         },
         {
             index: 4,
@@ -126,7 +133,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] 
         },
         {
             index: 5,
@@ -135,7 +142,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] 
         },
         {
             index: 6,
@@ -144,7 +151,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] 
         },
         {
             index: 7,
@@ -153,7 +160,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 10,
-            bbox: [0, 0, 100, 100]
+            bbox: [[0, 0, 100, 100]] 
         },
     ];
 
@@ -162,16 +169,41 @@
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('comparisons-root');
 
+        // --- NEW: Setup IntersectionObserver for lazy loading and playback control ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const container = entry.target;
+                const setIndex = container.dataset.setIndex;
+                const set = videoData.find(s => s.index == setIndex);
+                const leftVideo = container.querySelector(`#video-left-${set.index}`);
+                const rightVideo = container.querySelector(`#video-right-${set.index}`);
+
+                if (entry.isIntersecting) {
+                    // Element is on screen
+                    leftVideo.play().catch(e => console.log("Autoplay requires user interaction."));
+                    rightVideo.play().catch(e => console.log("Autoplay requires user interaction."));
+
+                    // Lazy-load the canvas image if it hasn't been done yet
+                    if (!container.dataset.canvasInitialized) {
+                        container.dataset.canvasInitialized = 'true';
+                        generateBboxFrame(container.querySelector('.canvas-box'), set);
+                    }
+                } else {
+                    // Element is off screen
+                    leftVideo.pause();
+                    rightVideo.pause();
+                }
+            });
+        }, { threshold: 0.1 }); // Trigger when 10% of the element is visible
+
         videoData.forEach(set => {
             const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
 
-            // --- Start building elements for the new layout ---
-
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
+            comparisonBlock.dataset.setIndex = set.index; // For the observer
             comparisonBlock.innerHTML = `<h2>${set.title}</h2>`;
 
-            // ROW 1: Slider and Canvas
             const topRow = document.createElement('div');
             topRow.className = 'top-row';
             
@@ -180,11 +212,11 @@
             sliderElement.className = 'beer-slider';
             sliderElement.dataset.beerLabel = set.defaultLeft;
             sliderElement.innerHTML = `
-                <video id="video-left-${set.index}" loop muted autoplay playsinline>
+                <video id="video-left-${set.index}" loop muted playsinline preload="metadata">
                     <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
                 </video>
                 <div class="beer-reveal" data-beer-label="${set.defaultRight}">
-                    <video id="video-right-${set.index}" loop muted autoplay playsinline>
+                    <video id="video-right-${set.index}" loop muted playsinline preload="metadata">
                         <source src="${videoSetBasePath}${set.sources[set.defaultRight]}" type="video/mp4">
                     </video>
                 </div>
@@ -199,7 +231,6 @@
             topRow.appendChild(sliderElement);
             topRow.appendChild(canvasBox);
             
-            // ROW 2: Controls and Empty Placeholder
             const bottomRow = document.createElement('div');
             bottomRow.className = 'bottom-row';
 
@@ -225,23 +256,17 @@
                     ${rightButtonsHTML}
                 </div>
             `;
-
-            const emptyCell = document.createElement('div'); // The empty placeholder
+            const emptyCell = document.createElement('div');
 
             bottomRow.appendChild(controlsPanel);
             bottomRow.appendChild(emptyCell);
-
-            // Append rows to the main container
+            
             comparisonBlock.appendChild(topRow);
             comparisonBlock.appendChild(bottomRow);
 
             root.appendChild(comparisonBlock);
 
-            // --- Original logic for initialization and events ---
-            
-            const leftVideo = document.getElementById(`video-left-${set.index}`);
-            const rightVideo = document.getElementById(`video-right-${set.index}`);
-
+            // --- Initialization Logic ---
             let videosReady = 0;
             const onVideoReady = () => {
                 if (++videosReady === 2) {
@@ -249,41 +274,55 @@
                     syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
                 }
             };
+            sliderElement.querySelector(`#video-left-${set.index}`).addEventListener('loadedmetadata', onVideoReady);
+            sliderElement.querySelector(`#video-right-${set.index}`).addEventListener('loadedmetadata', onVideoReady);
 
-            leftVideo.addEventListener('loadedmetadata', onVideoReady);
-            rightVideo.addEventListener('loadedmetadata', onVideoReady);
-
-            if (set.bbox && set.frameIdx !== undefined) {
-                const [x, y, w, h] = set.bbox;
-                const ctx = canvas.getContext('2d');
-                const hiddenVideo = document.createElement('video');
-                hiddenVideo.src = `${videoSetBasePath}${set.sources['Original']}`;
-                hiddenVideo.crossOrigin = 'anonymous';
-                hiddenVideo.style.display = 'none';
-                hiddenVideo.muted = true;
-                document.body.appendChild(hiddenVideo);
-
-                hiddenVideo.addEventListener('loadedmetadata', () => {
-                    hiddenVideo.currentTime = set.frameIdx / 30; // assume 30fps
-                });
-
-                hiddenVideo.addEventListener('seeked', () => {
-                    const vw = hiddenVideo.videoWidth;
-                    const vh = hiddenVideo.videoHeight;
-                    canvas.width = vw;
-                    canvas.height = vh;
-                    ctx.drawImage(hiddenVideo, 0, 0, vw, vh);
-                    ctx.strokeStyle = 'red';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(x, y, w, h);
-                    document.body.removeChild(hiddenVideo);
-                });
-
-                hiddenVideo.load();
-            }
+            // Start observing the block for playback and lazy loading
+            observer.observe(comparisonBlock);
         });
         root.addEventListener('click', handleSourceChange);
     });
+
+    /**
+     * Lazy-loaded function to generate the static frame with bounding box(es).
+     */
+    function generateBboxFrame(canvasBox, set) {
+        const canvas = canvasBox.querySelector('canvas');
+        if (!canvas || !set.bbox || set.frameIdx === undefined) return;
+
+        // Check if bbox is a single box or multiple, and normalize to an array of arrays
+        const bboxes = Array.isArray(set.bbox[0]) ? set.bbox : [set.bbox];
+        
+        const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
+        const hiddenVideo = document.createElement('video');
+        hiddenVideo.src = `${videoSetBasePath}${set.sources['Original']}`;
+        hiddenVideo.crossOrigin = 'anonymous';
+        hiddenVideo.muted = true;
+        
+        hiddenVideo.addEventListener('loadedmetadata', () => {
+            hiddenVideo.currentTime = set.frameIdx / 30; // assume 30fps
+        });
+
+        hiddenVideo.addEventListener('seeked', () => {
+            const ctx = canvas.getContext('2d');
+            canvas.width = hiddenVideo.videoWidth;
+            canvas.height = hiddenVideo.videoHeight;
+            ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+            
+            // Draw all bounding boxes
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = Math.max(2, canvas.width / 500); // Dynamic line width
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 4;
+
+            bboxes.forEach(box => {
+                const [x, y, w, h] = box;
+                ctx.strokeRect(x, y, w, h);
+            });
+        });
+        
+        hiddenVideo.load();
+    }
 
     function syncVideos(masterId, slaveId) {
         const master = document.getElementById(masterId);
@@ -333,13 +372,11 @@
         videoEl.querySelector('source').setAttribute('src', newSrc);
         videoEl.load();
         
-        const playPromise = videoEl.play();
-        if (playPromise !== undefined) {
-            playPromise.then(() => {
-                otherVideoEl.play();
-            }).catch(error => {
-                console.error("Autoplay was prevented:", error);
-            });
+        // If the slider is currently visible, play the video after changing source
+        const container = button.closest('.comparison-container');
+        if (container.dataset.isIntersecting === 'true') {
+            videoEl.play().catch(e => {});
+            otherVideoEl.play().catch(e => {});
         }
 
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
