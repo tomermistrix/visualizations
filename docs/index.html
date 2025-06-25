@@ -212,11 +212,11 @@
             sliderElement.className = 'beer-slider';
             sliderElement.dataset.beerLabel = set.defaultLeft;
             sliderElement.innerHTML = `
-                <video id="video-right-${set.index}" loop muted playsinline preload="metadata">
+                <video id="video-left-${set.index}" loop muted playsinline preload="metadata">
                     <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
                 </video>
                 <div class="beer-reveal" data-beer-label="${set.defaultRight}">
-                    <video id="video-left-${set.index}" loop muted playsinline preload="metadata">
+                    <video id="video-right-${set.index}" loop muted playsinline preload="metadata">
                         <source src="${videoSetBasePath}${set.sources[set.defaultRight]}" type="video/mp4">
                     </video>
                 </div>
@@ -363,7 +363,7 @@
         const sliderEl = document.getElementById(`slider-${sliderIndex}`);
         const revealEl = sliderEl.querySelector('.beer-reveal');
         
-        if (side === 'left') {
+        if (side === 'right') {
             sliderEl.dataset.beerLabel = sourceKey;
         } else {
             revealEl.dataset.beerLabel = sourceKey;
