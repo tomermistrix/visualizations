@@ -10,7 +10,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             line-height: 1.6;
             color: #333;
-            max-width: 1400px; /* Increased max-width for 3 columns */
+            max-width: 1400px;
             margin: 20px auto;
             padding: 0 15px;
             background-color: #f6f8fa;
@@ -25,25 +25,21 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 40px;
-            min-height: 400px; /* Placeholder for lazy loading to prevent layout shift */
+            min-height: 400px;
         }
         .comparison-row {
             display: flex;
             gap: 20px;
             align-items: flex-start;
         }
-        .slider-box {
-            flex: 2; /* Main interactive element gets more space */
-        }
-        .canvas-box, .crop-gallery-box {
-            flex: 1; /* Analysis columns get equal space */
-        }
+        .slider-box { flex: 2; }
+        .canvas-box, .crop-gallery-box { flex: 1; }
         .canvas-box canvas, .crop-item canvas {
             width: 100%;
             height: auto;
             border: 1px solid #ccc;
             display: block;
-            background-color: #f0f0f0; /* Show a placeholder while loading */
+            background-color: #f0f0f0;
         }
         .crop-gallery-box h4, .canvas-box h4 {
              margin-top: 0;
@@ -66,21 +62,15 @@
             object-fit: cover;
             display: block;
         }
-        .beer-handle {
-            font-size: 0;
-        }
+        .beer-handle { font-size: 0; }
         .controls-panel {
             display: flex;
             justify-content: space-between;
+            flex-wrap: wrap;
             margin-top: 10px;
             padding: 10px;
             background-color: #f1f1f1;
             border-radius: 4px;
-        }
-        .controls-panel div {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
         }
         .video-select-btn {
             padding: 6px 10px;
@@ -89,6 +79,7 @@
             cursor: pointer;
             border-radius: 4px;
             font-size: 0.9em;
+            margin: 2px;
         }
         .video-select-btn.active {
             background-color: #0366d6;
@@ -181,100 +172,74 @@
     const VIDEO_BASE_PATH = 'assets/videos/';
 
     /**
-     * Creates a canvas element with a specific frame drawn from a video.
-     * @returns {Promise<HTMLCanvasElement>} A promise that resolves with the canvas.
+     * Initializes the slider and video sync.
+     * This is the original, working function.
      */
-    function createFrameFromVideo(videoPath, frameIdx) {
-        return new Promise((resolve, reject) => {
-            const video = document.createElement('video');
-            video.crossOrigin = 'anonymous';
-            video.muted = true;
-            
-            const onSeeked = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-                video.removeEventListener('seeked', onSeeked); // Clean up
-                resolve(canvas);
-            };
+    function syncVideos(masterId, slaveId) {
+        const master = document.getElementById(masterId);
+        const slave = document.getElementById(slaveId);
+        if (!master || !slave) return;
 
-            const onLoadedMetadata = () => {
-                video.currentTime = frameIdx / 30; // Assuming 30fps
-                video.removeEventListener('loadedmetadata', onLoadedMetadata); // Clean up
-            };
-
-            video.addEventListener('loadedmetadata', onLoadedMetadata);
-            video.addEventListener('seeked', onSeeked);
-            video.addEventListener('error', (e) => reject(`Error loading video: ${videoPath}`));
-            
-            video.src = videoPath;
-        });
-    }
-
-    /**
-     * Initializes the slider and video sync (from original file).
-     */
-    function initializeSlider(container, set) {
-        const sliderElement = container.querySelector(`#slider-${set.index}`);
-        const leftVideo = container.querySelector(`#video-left-${set.index}`);
-        const rightVideo = container.querySelector(`#video-right-${set.index}`);
-
-        new BeerSlider(sliderElement);
-        
         ['play', 'pause', 'seeking'].forEach(event => {
-            leftVideo.addEventListener(event, () => {
-                if (event === 'play' && rightVideo.paused) rightVideo.play();
-                if (event === 'pause' && !rightVideo.paused) rightVideo.pause();
-                if (event === 'seeking') rightVideo.currentTime = leftVideo.currentTime;
+            master.addEventListener(event, () => {
+                if(event === 'play' && slave.paused) slave.play();
+                if(event === 'pause' && !slave.paused) slave.pause();
+                if(event === 'seeking') slave.currentTime = master.currentTime;
             });
         });
 
-        leftVideo.addEventListener('timeupdate', () => {
-            if (Math.abs(leftVideo.currentTime - rightVideo.currentTime) > 0.1) {
-                rightVideo.currentTime = leftVideo.currentTime;
+        master.addEventListener('timeupdate', () => {
+            if (Math.abs(master.currentTime - slave.currentTime) > 0.1) {
+                slave.currentTime = master.currentTime;
             }
         });
     }
-    
-    /**
-     * Generates and displays the static frame with the bounding box.
-     */
-    async function generateBboxFrame(container, set) {
-        const canvasContainer = container.querySelector('.canvas-box');
-        if (!canvasContainer || !set.bbox) return;
 
+    /**
+     * Generates the static frame with the bounding box.
+     * This is the original, working function, adapted to find the canvas within its container.
+     */
+    function generateBboxFrame(container, set) {
+        const canvas = container.querySelector(`#canvas-${set.index}`);
+        if (!canvas || !set.bbox || set.frameIdx === undefined) return;
+        
         const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources['Ours']}`;
-        try {
-            const fullFrameCanvas = await createFrameFromVideo(videoPath, set.frameIdx);
-            
-            const ctx = fullFrameCanvas.getContext('2d');
-            const [x, y, w, h] = set.bbox;
+        const [x, y, w, h] = set.bbox;
+        const ctx = canvas.getContext('2d');
+        const hiddenVideo = document.createElement('video');
+        
+        hiddenVideo.src = videoPath;
+        hiddenVideo.crossOrigin = 'anonymous';
+        hiddenVideo.muted = true;
+        
+        hiddenVideo.addEventListener('loadedmetadata', () => {
+            hiddenVideo.currentTime = set.frameIdx / 30; // assume 30fps
+        });
+        
+        hiddenVideo.addEventListener('seeked', () => {
+            const vw = hiddenVideo.videoWidth;
+            const vh = hiddenVideo.videoHeight;
+            canvas.width = vw;
+            canvas.height = vh;
+            ctx.drawImage(hiddenVideo, 0, 0, vw, vh);
             ctx.strokeStyle = 'red';
-            ctx.lineWidth = Math.max(2, fullFrameCanvas.width / 400); // Scale line width
+            ctx.lineWidth = Math.max(2, vw / 400); // Dynamic line width
             ctx.strokeRect(x, y, w, h);
-            
-            // Clear the placeholder and append the final canvas
-            canvasContainer.innerHTML = '<h4>Context Frame</h4>'; // Reset container
-            canvasContainer.appendChild(fullFrameCanvas);
-        } catch (error) {
-            console.error(error);
-            canvasContainer.innerHTML = '<h4>Context Frame</h4><p>Error loading frame.</p>';
-        }
+        });
+
+        hiddenVideo.load();
     }
     
     /**
-     * Generates and displays the gallery of cropped frames.
+     * Generates the new crop gallery. This function uses the same simple,
+     * robust logic as the original generateBboxFrame function.
      */
-    async function generateCropGallery(container, set) {
+    function generateCropGallery(container, set) {
         const galleryContainer = container.querySelector('.crop-items-container');
         if (!galleryContainer || !set.bbox) return;
 
-        galleryContainer.innerHTML = ''; // Clear any placeholders
-
         const [sx, sy, sWidth, sHeight] = set.bbox;
-        
+
         for (const key in set.sources) {
             const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources[key]}`;
             
@@ -284,31 +249,40 @@
             const label = document.createElement('p');
             label.textContent = key;
             
-            const cropCanvas = document.createElement('canvas');
-            cropCanvas.width = sWidth;
-            cropCanvas.height = sHeight;
-            const ctx = cropCanvas.getContext('2d');
+            const canvas = document.createElement('canvas');
+            canvas.width = sWidth;
+            canvas.height = sHeight;
+            const ctx = canvas.getContext('2d');
             
-            cropItem.appendChild(cropCanvas);
+            cropItem.appendChild(canvas);
             cropItem.appendChild(label);
             galleryContainer.appendChild(cropItem);
 
-            try {
-                const fullFrameCanvas = await createFrameFromVideo(videoPath, set.frameIdx);
-                // Crop from the full frame canvas to the smaller crop canvas
-                ctx.drawImage(fullFrameCanvas, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-            } catch (error) {
-                console.error(error);
+            const hiddenVideo = document.createElement('video');
+            hiddenVideo.src = videoPath;
+            hiddenVideo.crossOrigin = 'anonymous';
+            hiddenVideo.muted = true;
+
+            hiddenVideo.addEventListener('loadedmetadata', () => {
+                hiddenVideo.currentTime = set.frameIdx / 30;
+            });
+
+            hiddenVideo.addEventListener('seeked', () => {
+                ctx.drawImage(hiddenVideo, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            });
+            
+            hiddenVideo.addEventListener('error', () => {
                 ctx.fillStyle = '#666';
                 ctx.textAlign = 'center';
-                ctx.font = '14px sans-serif';
                 ctx.fillText('Error', sWidth / 2, sHeight / 2);
-            }
+            });
+
+            hiddenVideo.load();
         }
     }
-
+    
     /**
-     * Handles changing the video source in the slider (from original file).
+     * Handles changing the video source. This is the original working function.
      */
     function handleSourceChange(event) {
         if (!event.target.matches('.video-select-btn')) return;
@@ -334,9 +308,14 @@
 
         videoEl.querySelector('source').setAttribute('src', newSrc);
         videoEl.load();
-        videoEl.play().catch(e => console.log("Autoplay prevented after source change."));
+        
+        const otherSide = side === 'left' ? 'right' : 'left';
+        const otherVideoEl = document.getElementById(`video-${otherSide}-${sliderIndex}`);
 
-        // Update active class on the correct group of buttons
+        Promise.all([videoEl.play(), otherVideoEl.play()]).catch(error => {
+            console.error("Autoplay was prevented:", error);
+        });
+
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     }
@@ -349,16 +328,28 @@
                 if (entry.isIntersecting) {
                     const container = entry.target;
                     const setIndex = container.dataset.setIndex;
+                    if (container.dataset.initialized) return;
+
+                    container.dataset.initialized = "true";
                     const set = videoData.find(s => s.index == setIndex);
+
+                    const leftVideo = container.querySelector(`#video-left-${set.index}`);
+                    const rightVideo = container.querySelector(`#video-right-${set.index}`);
+                    const sliderElement = container.querySelector(`#slider-${set.index}`);
+
+                    let videosReady = 0;
+                    const onVideoReady = () => {
+                        if (++videosReady === 2) {
+                            new BeerSlider(sliderElement);
+                            syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
+                            generateBboxFrame(container, set);
+                            generateCropGallery(container, set);
+                        }
+                    };
+                    leftVideo.addEventListener('loadedmetadata', onVideoReady, { once: true });
+                    rightVideo.addEventListener('loadedmetadata', onVideoReady, { once: true });
                     
-                    if (!container.dataset.initialized) {
-                         container.dataset.initialized = "true";
-                         initializeSlider(container, set);
-                         generateBboxFrame(container, set);
-                         generateCropGallery(container, set);
-                    }
-                    // We can unobserve to save resources, but it's optional
-                    // observer.unobserve(container); 
+                    observer.unobserve(container);
                 }
             });
         }, { rootMargin: "100px" });
@@ -399,17 +390,13 @@
                             <div class="right-controls">${rightButtonsHTML}</div>
                         </div>
                     </div>
-
                     <div class="canvas-box">
                         <h4>Context Frame</h4>
-                        <!-- Bbox frame will be generated here -->
+                        <canvas id="canvas-${set.index}"></canvas>
                     </div>
-
                     <div class="crop-gallery-box">
                         <h4>Region of Interest Crops</h4>
-                        <div class="crop-items-container">
-                            <!-- Crop items will be generated here -->
-                        </div>
+                        <div class="crop-items-container"></div>
                     </div>
                 </div>
             `;
