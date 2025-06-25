@@ -26,19 +26,23 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 40px;
         }
-        .comparison-row {
+        /* NEW: Styles for the two-row structure */
+        .top-row, .bottom-row {
             display: flex;
             gap: 20px;
-            align-items: flex-start; /* CHANGE 1: Prevents columns from stretching to match height */
         }
-        .slider-box, .canvas-box {
-            flex: 1;
+        .bottom-row {
+            margin-top: 10px; /* Space between slider and controls */
+        }
+        .top-row > div, .bottom-row > div {
+            flex: 1; /* Make columns in each row equal width */
         }
         .canvas-box canvas {
             width: 100%;
-            height: auto; /* CHANGE 2: Allows canvas to maintain its aspect ratio */
+            height: 100%; /* This now works because the parent is stretched to the correct height */
             border: 1px solid #ccc;
             display: block;
+            object-fit: cover; /* Ensures the drawn image covers the canvas area */
         }
         .beer-slider video, .beer-reveal video {
             width: 100%;
@@ -52,7 +56,6 @@
         .controls-panel {
             display: flex;
             justify-content: space-between;
-            margin-top: 10px;
             padding: 10px;
             background-color: #f1f1f1;
             border-radius: 4px;
@@ -162,6 +165,44 @@
         videoData.forEach(set => {
             const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
 
+            // --- Start building elements for the new layout ---
+
+            const comparisonBlock = document.createElement('div');
+            comparisonBlock.className = 'comparison-container';
+            comparisonBlock.innerHTML = `<h2>${set.title}</h2>`;
+
+            // ROW 1: Slider and Canvas
+            const topRow = document.createElement('div');
+            topRow.className = 'top-row';
+            
+            const sliderElement = document.createElement('div');
+            sliderElement.id = `slider-${set.index}`;
+            sliderElement.className = 'beer-slider';
+            sliderElement.dataset.beerLabel = set.defaultLeft;
+            sliderElement.innerHTML = `
+                <video id="video-left-${set.index}" loop muted autoplay playsinline>
+                    <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
+                </video>
+                <div class="beer-reveal" data-beer-label="${set.defaultRight}">
+                    <video id="video-right-${set.index}" loop muted autoplay playsinline>
+                        <source src="${videoSetBasePath}${set.sources[set.defaultRight]}" type="video/mp4">
+                    </video>
+                </div>
+            `;
+            
+            const canvasBox = document.createElement('div');
+            canvasBox.className = 'canvas-box';
+            const canvas = document.createElement('canvas');
+            canvas.id = `canvas-${set.index}`;
+            canvasBox.appendChild(canvas);
+
+            topRow.appendChild(sliderElement);
+            topRow.appendChild(canvasBox);
+            
+            // ROW 2: Controls and Empty Placeholder
+            const bottomRow = document.createElement('div');
+            bottomRow.className = 'bottom-row';
+
             let leftButtonsHTML = '';
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
@@ -172,54 +213,34 @@
                 leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
             });
 
-            const comparisonBlock = document.createElement('div');
-            comparisonBlock.className = 'comparison-container';
-
-            // We now build the inner content before appending to the row for clarity
-            const sliderBox = document.createElement('div');
-            sliderBox.className = 'slider-box';
-            sliderBox.innerHTML = `
-                <div id="slider-${set.index}" class="beer-slider" data-beer-label="${set.defaultLeft}">
-                    <video id="video-left-${set.index}" loop muted autoplay playsinline>
-                        <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
-                    </video>
-                    <div class="beer-reveal" data-beer-label="${set.defaultRight}">
-                        <video id="video-right-${set.index}" loop muted autoplay playsinline>
-                            <source src="${videoSetBasePath}${set.sources[set.defaultRight]}" type="video/mp4">
-                        </video>
-                    </div>
+            const controlsPanel = document.createElement('div');
+            controlsPanel.className = 'controls-panel';
+            controlsPanel.innerHTML = `
+                <div class="left-controls">
+                    <h3>Left Video</h3>
+                    ${leftButtonsHTML}
                 </div>
-                <div class="controls-panel">
-                    <div class="left-controls">
-                        <h3>Left Video</h3>
-                        ${leftButtonsHTML}
-                    </div>
-                    <div class="right-controls">
-                        <h3>Right Video</h3>
-                        ${rightButtonsHTML}
-                    </div>
+                <div class="right-controls">
+                    <h3>Right Video</h3>
+                    ${rightButtonsHTML}
                 </div>
             `;
-            
-            const canvasBox = document.createElement('div');
-            canvasBox.className = 'canvas-box';
-            const canvas = document.createElement('canvas');
-            canvas.id = `canvas-${set.index}`;
-            canvasBox.appendChild(canvas);
 
-            const row = document.createElement('div');
-            row.className = 'comparison-row';
-            row.appendChild(sliderBox);
-            row.appendChild(canvasBox);
+            const emptyCell = document.createElement('div'); // The empty placeholder
 
-            comparisonBlock.innerHTML = `<h2>${set.title}</h2>`; // Add title
-            comparisonBlock.appendChild(row);
+            bottomRow.appendChild(controlsPanel);
+            bottomRow.appendChild(emptyCell);
+
+            // Append rows to the main container
+            comparisonBlock.appendChild(topRow);
+            comparisonBlock.appendChild(bottomRow);
 
             root.appendChild(comparisonBlock);
 
+            // --- Original logic for initialization and events ---
+            
             const leftVideo = document.getElementById(`video-left-${set.index}`);
             const rightVideo = document.getElementById(`video-right-${set.index}`);
-            const sliderElement = document.getElementById(`slider-${set.index}`);
 
             let videosReady = 0;
             const onVideoReady = () => {
@@ -255,7 +276,7 @@
                     ctx.strokeStyle = 'red';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(x, y, w, h);
-                    document.body.removeChild(hiddenVideo); // Clean up the hidden video
+                    document.body.removeChild(hiddenVideo);
                 });
 
                 hiddenVideo.load();
@@ -320,20 +341,7 @@
                 console.error("Autoplay was prevented:", error);
             });
         }
-        
-        button.closest('.controls-panel').querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
-        
-        // Activate the correct buttons in both panels
-        const leftButton = button.closest('.comparison-row').querySelector(`.left-controls .video-select-btn[data-source-key="${sourceKey}"]`);
-        const rightButton = button.closest('.comparison-row').querySelector(`.right-controls .video-select-btn[data-source-key="${sourceKey}"]`);
 
-        if(side === 'left' && leftButton) {
-            leftButton.classList.add('active');
-        } else if (side === 'right' && rightButton) {
-            rightButton.classList.add('active');
-        }
-        // This logic is a bit tangled due to the button duplication. A better approach would be to have one set of buttons per video side.
-        // For now, let's simplify button activation.
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     }
