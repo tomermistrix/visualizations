@@ -257,7 +257,7 @@
                 const [x, y, w, h] = set.bbox;
                 const ctx = canvas.getContext('2d');
                 const hiddenVideo = document.createElement('video');
-                hiddenVideo.src = `${videoSetBasePath}${set.sources['Ours']}`;
+                hiddenVideo.src = `${videoSetBasePath}${set.sources['Original']}`;
                 hiddenVideo.crossOrigin = 'anonymous';
                 hiddenVideo.style.display = 'none';
                 hiddenVideo.muted = true;
