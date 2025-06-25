@@ -78,6 +78,13 @@
             border-color: #0366d6;
             font-weight: bold;
         }
+        .canvas-wrapper {
+            display: flex;
+            flex-direction: column; /* Stack items vertically (h4 on top of canvas-box) */
+        }
+        .canvas-wrapper .canvas-box {
+            flex-grow: 1; /* This is the key: it tells the canvas-box to grow and fill all remaining vertical space */
+        }
     </style>
 </head>
 <body>
@@ -226,6 +233,7 @@
             
             sliderWrapper.appendChild(sliderElement);
             const canvasWrapper = document.createElement('div');
+            canvasBox.className = 'canvas-wrapper';
             canvasWrapper.innerHTML = `<h4>Context Frame</h4>`;
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
