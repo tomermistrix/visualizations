@@ -78,12 +78,9 @@
             border-color: #0366d6;
             font-weight: bold;
         }
-        .canvas-wrapper {
-            display: flex;
-            flex-direction: column; /* Stack items vertically (h4 on top of canvas-box) */
-        }
-        .canvas-wrapper .canvas-box {
-            flex-grow: 1; /* This is the key: it tells the canvas-box to grow and fill all remaining vertical space */
+        .content-wrapper { /* This class is on BOTH .slider-wrapper and .canvas-wrapper */
+            display: grid;
+            grid-template-rows: auto 1fr; 
         }
     </style>
 </head>
@@ -215,6 +212,7 @@
             topRow.className = 'top-row';
             
             const sliderWrapper = document.createElement('div');
+            sliderWrapper.className = 'content-wrapper';
             sliderWrapper.innerHTML = `<h4>Interactive Video Comparison</h4>`;
             const sliderElement = document.createElement('div');
             sliderElement.id = `slider-${set.index}`;
@@ -233,7 +231,7 @@
             
             sliderWrapper.appendChild(sliderElement);
             const canvasWrapper = document.createElement('div');
-            canvasWrapper.className = 'canvas-wrapper';
+            canvasWrapper.className = 'content-wrapper';
             canvasWrapper.innerHTML = `<h4>Context Frame</h4>`;
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
