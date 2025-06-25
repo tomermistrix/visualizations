@@ -208,16 +208,20 @@
                     </div>
                 </div>
             `;
-
+            
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
             const canvas = document.createElement('canvas');
             canvas.id = `canvas-${set.index}`;
             canvasBox.appendChild(canvas);
+            const controlPanelBlank = document.createElement('div');
+            controlPanelBlank.className = 'controls-panel';
+            canvasBox.appendChild(controlPanelBlank);
 
             row.appendChild(sliderBox);
             row.appendChild(canvasBox);
             comparisonBlock.appendChild(row);
+
             root.appendChild(comparisonBlock);
 
             const leftVideo = document.getElementById(`video-left-${set.index}`);
