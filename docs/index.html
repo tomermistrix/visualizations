@@ -25,7 +25,7 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 40px;
-            min-height: 400px; /* Placeholder for lazy loading */
+            min-height: 400px; /* Placeholder for lazy loading to prevent layout shift */
         }
         .comparison-row {
             display: flex;
@@ -43,10 +43,11 @@
             height: auto;
             border: 1px solid #ccc;
             display: block;
-            background-color: #f0f0f0;
+            background-color: #f0f0f0; /* Show a placeholder while loading */
         }
         .crop-gallery-box h4, .canvas-box h4 {
              margin-top: 0;
+             font-size: 1em;
         }
         .crop-items-container {
             display: grid;
@@ -76,6 +77,11 @@
             background-color: #f1f1f1;
             border-radius: 4px;
         }
+        .controls-panel div {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
         .video-select-btn {
             padding: 6px 10px;
             border: 1px solid #ccc;
@@ -83,7 +89,6 @@
             cursor: pointer;
             border-radius: 4px;
             font-size: 0.9em;
-            margin: 0 2px;
         }
         .video-select-btn.active {
             background-color: #0366d6;
@@ -126,22 +131,98 @@
             frameIdx: 50,
             bbox: [920, 250, 256, 256]
         },
+        {
+            index: 3,
+            title: "Clay",
+            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
+            defaultLeft: 'Ours',
+            defaultRight: 'H.264',
+            frameIdx: 120,
+            bbox: [600, 300, 300, 300]
+        },
+        {
+            index: 4,
+            title: "River",
+            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
+            defaultLeft: 'Ours',
+            defaultRight: 'H.264',
+            frameIdx: 200,
+            bbox: [1100, 600, 256, 256]
+        },
+        {
+            index: 5,
+            title: "Model",
+            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
+            defaultLeft: 'Ours',
+            defaultRight: 'H.264',
+            frameIdx: 10,
+            bbox: [920, 250, 256, 256]
+        },
+        {
+            index: 6,
+            title: "Rain",
+            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
+            defaultLeft: 'Ours',
+            defaultRight: 'H.264',
+            frameIdx: 10,
+            bbox: [500, 300, 300, 300]
+        },
+        {
+            index: 7,
+            title: "Interview",
+            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
+            defaultLeft: 'Ours',
+            defaultRight: 'H.264',
+            frameIdx: 10,
+            bbox: [800, 200, 300, 300]
+        },
     ];
 
     const VIDEO_BASE_PATH = 'assets/videos/';
 
     /**
-     * Initializes the BeerSlider and syncs the videos.
-     * This logic is from the original working file.
+     * Creates a canvas element with a specific frame drawn from a video.
+     * @returns {Promise<HTMLCanvasElement>} A promise that resolves with the canvas.
+     */
+    function createFrameFromVideo(videoPath, frameIdx) {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.crossOrigin = 'anonymous';
+            video.muted = true;
+            
+            const onSeeked = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                video.removeEventListener('seeked', onSeeked); // Clean up
+                resolve(canvas);
+            };
+
+            const onLoadedMetadata = () => {
+                video.currentTime = frameIdx / 30; // Assuming 30fps
+                video.removeEventListener('loadedmetadata', onLoadedMetadata); // Clean up
+            };
+
+            video.addEventListener('loadedmetadata', onLoadedMetadata);
+            video.addEventListener('seeked', onSeeked);
+            video.addEventListener('error', (e) => reject(`Error loading video: ${videoPath}`));
+            
+            video.src = videoPath;
+        });
+    }
+
+    /**
+     * Initializes the slider and video sync (from original file).
      */
     function initializeSlider(container, set) {
         const sliderElement = container.querySelector(`#slider-${set.index}`);
         const leftVideo = container.querySelector(`#video-left-${set.index}`);
         const rightVideo = container.querySelector(`#video-right-${set.index}`);
-        
+
         new BeerSlider(sliderElement);
         
-        // Sync videos
         ['play', 'pause', 'seeking'].forEach(event => {
             leftVideo.addEventListener(event, () => {
                 if (event === 'play' && rightVideo.paused) rightVideo.play();
@@ -155,52 +236,42 @@
                 rightVideo.currentTime = leftVideo.currentTime;
             }
         });
-
-        leftVideo.play().catch(e => console.log("Autoplay was prevented."));
-        rightVideo.play().catch(e => console.log("Autoplay was prevented."));
-    }
-
-    /**
-     * Generates the static frame with the bounding box.
-     * This logic is restored from the original working file.
-     */
-    function generateBboxFrame(container, set) {
-        const canvas = container.querySelector(`#canvas-${set.index}`);
-        const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources['Ours']}`; // Use 'Ours' as the base for the bbox frame
-        
-        if (!canvas || !set.bbox || set.frameIdx === undefined) return;
-        
-        const [x, y, w, h] = set.bbox;
-        const ctx = canvas.getContext('2d');
-        const hiddenVideo = document.createElement('video');
-        hiddenVideo.src = videoPath;
-        hiddenVideo.crossOrigin = 'anonymous';
-        hiddenVideo.muted = true;
-        
-        hiddenVideo.addEventListener('loadedmetadata', () => {
-            hiddenVideo.currentTime = set.frameIdx / 30; // assume 30fps
-        });
-        
-        hiddenVideo.addEventListener('seeked', () => {
-            const vw = hiddenVideo.videoWidth;
-            const vh = hiddenVideo.videoHeight;
-            canvas.width = vw;
-            canvas.height = vh;
-            ctx.drawImage(hiddenVideo, 0, 0, vw, vh);
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = Math.max(2, vw / 400);
-            ctx.strokeRect(x, y, w, h);
-        });
-        
-        hiddenVideo.load();
     }
     
     /**
-     * Generates the new crop gallery for all sources.
+     * Generates and displays the static frame with the bounding box.
+     */
+    async function generateBboxFrame(container, set) {
+        const canvasContainer = container.querySelector('.canvas-box');
+        if (!canvasContainer || !set.bbox) return;
+
+        const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources['Ours']}`;
+        try {
+            const fullFrameCanvas = await createFrameFromVideo(videoPath, set.frameIdx);
+            
+            const ctx = fullFrameCanvas.getContext('2d');
+            const [x, y, w, h] = set.bbox;
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = Math.max(2, fullFrameCanvas.width / 400); // Scale line width
+            ctx.strokeRect(x, y, w, h);
+            
+            // Clear the placeholder and append the final canvas
+            canvasContainer.innerHTML = '<h4>Context Frame</h4>'; // Reset container
+            canvasContainer.appendChild(fullFrameCanvas);
+        } catch (error) {
+            console.error(error);
+            canvasContainer.innerHTML = '<h4>Context Frame</h4><p>Error loading frame.</p>';
+        }
+    }
+    
+    /**
+     * Generates and displays the gallery of cropped frames.
      */
     async function generateCropGallery(container, set) {
         const galleryContainer = container.querySelector('.crop-items-container');
-        if (!galleryContainer || !set.bbox || set.frameIdx === undefined) return;
+        if (!galleryContainer || !set.bbox) return;
+
+        galleryContainer.innerHTML = ''; // Clear any placeholders
 
         const [sx, sy, sWidth, sHeight] = set.bbox;
         
@@ -213,28 +284,19 @@
             const label = document.createElement('p');
             label.textContent = key;
             
-            const canvas = document.createElement('canvas');
-            canvas.width = sWidth;
-            canvas.height = sHeight;
-            const ctx = canvas.getContext('2d');
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = sWidth;
+            cropCanvas.height = sHeight;
+            const ctx = cropCanvas.getContext('2d');
             
-            cropItem.appendChild(canvas);
+            cropItem.appendChild(cropCanvas);
             cropItem.appendChild(label);
             galleryContainer.appendChild(cropItem);
 
             try {
-                const video = await new Promise((resolve, reject) => {
-                    const hiddenVideo = document.createElement('video');
-                    hiddenVideo.crossOrigin = 'anonymous';
-                    hiddenVideo.muted = true;
-                    hiddenVideo.addEventListener('seeked', () => resolve(hiddenVideo));
-                    hiddenVideo.addEventListener('error', (e) => reject(`Failed to load video: ${videoPath}`));
-                    hiddenVideo.src = videoPath;
-                    hiddenVideo.addEventListener('loadedmetadata', () => {
-                         hiddenVideo.currentTime = set.frameIdx / 30; // 30fps assumption
-                    });
-                });
-                ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+                const fullFrameCanvas = await createFrameFromVideo(videoPath, set.frameIdx);
+                // Crop from the full frame canvas to the smaller crop canvas
+                ctx.drawImage(fullFrameCanvas, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
             } catch (error) {
                 console.error(error);
                 ctx.fillStyle = '#666';
@@ -246,8 +308,7 @@
     }
 
     /**
-     * Handles changing the video source in the slider.
-     * This function is from the original working file.
+     * Handles changing the video source in the slider (from original file).
      */
     function handleSourceChange(event) {
         if (!event.target.matches('.video-select-btn')) return;
@@ -275,6 +336,7 @@
         videoEl.load();
         videoEl.play().catch(e => console.log("Autoplay prevented after source change."));
 
+        // Update active class on the correct group of buttons
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     }
@@ -282,7 +344,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('comparisons-root');
 
-        // Lazy loading setup
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -296,7 +357,8 @@
                          generateBboxFrame(container, set);
                          generateCropGallery(container, set);
                     }
-                    observer.unobserve(container);
+                    // We can unobserve to save resources, but it's optional
+                    // observer.unobserve(container); 
                 }
             });
         }, { rootMargin: "100px" });
@@ -307,11 +369,11 @@
             let leftButtonsHTML = '';
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
-                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
-                rightButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
-                
                 const rightActiveClass = key === set.defaultRight ? 'active' : '';
-                leftButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+                rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+                
+                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
+                leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
             });
 
             const comparisonBlock = document.createElement('div');
@@ -321,7 +383,6 @@
             comparisonBlock.innerHTML = `
                 <h2>${set.title}</h2>
                 <div class="comparison-row">
-                    <!-- Column 1: Slider (Original working implementation) -->
                     <div class="slider-box">
                         <div id="slider-${set.index}" class="beer-slider" data-beer-label="${set.defaultLeft}">
                             <video id="video-left-${set.index}" loop muted autoplay playsinline>
@@ -334,18 +395,16 @@
                             </div>
                         </div>
                         <div class="controls-panel">
-                            <div class="left-controls">${rightButtonsHTML}</div>
-                            <div class="right-controls">${leftButtonsHTML}</div>
+                            <div class="left-controls">${leftButtonsHTML}</div>
+                            <div class="right-controls">${rightButtonsHTML}</div>
                         </div>
                     </div>
 
-                    <!-- Column 2: Bbox Frame (Original working implementation) -->
                     <div class="canvas-box">
                         <h4>Context Frame</h4>
-                        <canvas id="canvas-${set.index}"></canvas>
+                        <!-- Bbox frame will be generated here -->
                     </div>
 
-                    <!-- Column 3: Crop Gallery (New feature) -->
                     <div class="crop-gallery-box">
                         <h4>Region of Interest Crops</h4>
                         <div class="crop-items-container">
