@@ -223,11 +223,11 @@
                     </video>
                 </div>
             `;
-
+            
             sliderWrapper.appendChild(sliderElement);
-            canvasBox.innerHTML = `<h4>Context Frame</h4>`;
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
+            canvasBox.innerHTML = `<h4>Context Frame</h4>`;
             const canvas = document.createElement('canvas');
             canvas.id = `canvas-${set.index}`;
             canvasBox.appendChild(canvas);
