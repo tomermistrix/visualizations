@@ -10,7 +10,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             line-height: 1.6;
             color: #333;
-            max-width: 1200px;
+            max-width: 1400px; /* Increased max-width for 3 columns */
             margin: 20px auto;
             padding: 0 15px;
             background-color: #f6f8fa;
@@ -18,8 +18,6 @@
         h1, h2, h3, h4 {
             border-bottom: 1px solid #eaecef;
             padding-bottom: .3em;
-            margin-top: 24px;
-            margin-bottom: 16px;
         }
         .comparison-container {
             background: #fff;
@@ -27,8 +25,7 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 40px;
-            /* Placeholder height for lazy loading ensures no layout shift */
-            min-height: 450px; 
+            min-height: 400px; /* Placeholder for lazy loading */
         }
         .comparison-row {
             display: flex;
@@ -36,19 +33,22 @@
             align-items: flex-start;
         }
         .slider-box {
-            flex: 2; /* Give slider more space */
+            flex: 2; /* Main interactive element gets more space */
         }
-        .analysis-panel {
-            flex: 1; /* Give analysis panel less space */
+        .canvas-box, .crop-gallery-box {
+            flex: 1; /* Analysis columns get equal space */
         }
-        .context-frame canvas, .crop-item canvas {
+        .canvas-box canvas, .crop-item canvas {
             width: 100%;
             height: auto;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             display: block;
-            background-color: #f0f0f0; /* bg color for loading state */
+            background-color: #f0f0f0;
         }
-        .crop-gallery {
+        .crop-gallery-box h4, .canvas-box h4 {
+             margin-top: 0;
+        }
+        .crop-items-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
@@ -61,31 +61,20 @@
         }
         .beer-slider video, .beer-reveal video {
             width: 100%;
-            height: auto;
-            object-fit: contain;
+            height: 100%;
+            object-fit: cover;
             display: block;
         }
         .beer-handle {
             font-size: 0;
         }
         .controls-panel {
+            display: flex;
+            justify-content: space-between;
             margin-top: 10px;
             padding: 10px;
             background-color: #f1f1f1;
             border-radius: 4px;
-        }
-        .controls-row {
-            display: flex;
-            justify-content: space-between;
-        }
-        .controls-group {
-            flex: 1;
-        }
-        .controls-group h4 {
-            margin: 0 0 8px 0;
-            padding: 0;
-            border: none;
-            font-size: 1em;
         }
         .video-select-btn {
             padding: 6px 10px;
@@ -94,7 +83,7 @@
             cursor: pointer;
             border-radius: 4px;
             font-size: 0.9em;
-            margin: 2px;
+            margin: 0 2px;
         }
         .video-select-btn.active {
             background-color: #0366d6;
@@ -106,9 +95,7 @@
 </head>
 <body>
     <h1>Video Compression Comparison</h1>
-    <p>Each section compares video methods. Use the slider on the left for a dynamic comparison. The panel on the right provides a static analysis: a context frame shows the region of interest (red box), and the gallery below shows detailed, zoomed-in crops from all sources for that region.</p>
     <div id="comparisons-root"></div>
-
     <script src="https://unpkg.com/beerslider/dist/BeerSlider.js"></script>
     <script>
     const videoData = [
@@ -119,7 +106,7 @@
             defaultLeft: 'Ours',
             defaultRight: 'H.264',
             frameIdx: 150,
-            bbox: [750, 450, 256, 256] // [x, y, width, height] in pixels of source video
+            bbox: [750, 450, 256, 256]
         },
         {
             index: 1,
@@ -139,144 +126,135 @@
             frameIdx: 50,
             bbox: [920, 250, 256, 256]
         },
-        {
-            index: 3,
-            title: "Clay",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264',
-            frameIdx: 120,
-            bbox: [600, 300, 300, 300]
-        },
-        {
-            index: 4,
-            title: "River",
-            sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-            defaultLeft: 'Ours',
-            defaultRight: 'H.264',
-            frameIdx: 200,
-            bbox: [1100, 600, 256, 256]
-        },
     ];
 
     const VIDEO_BASE_PATH = 'assets/videos/';
 
     /**
-     * Creates and returns a promise that resolves with a specific frame from a video.
+     * Initializes the BeerSlider and syncs the videos.
+     * This logic is from the original working file.
      */
-    function getVideoFrame(videoPath, frameIdx) {
-        return new Promise((resolve, reject) => {
-            const video = document.createElement('video');
-            video.crossOrigin = 'anonymous';
-            video.muted = true;
-            
-            video.addEventListener('loadedmetadata', () => {
-                video.currentTime = frameIdx / 30; // Assuming 30fps
-            });
-            
-            video.addEventListener('seeked', () => resolve(video));
-
-            video.addEventListener('error', (e) => reject(`Error loading video: ${videoPath}`));
-            
-            video.src = videoPath;
-        });
-    }
-
-    /**
-     * Initializes the entire analysis panel (context + crops).
-     */
-    async function generateAnalysisPanel(container, set) {
-        if (!set.bbox || set.frameIdx === undefined) return;
-
-        const contextCanvas = container.querySelector('.context-frame canvas');
-        const cropGallery = container.querySelector('.crop-gallery');
-        if (!contextCanvas || !cropGallery) return;
-
-        const [sx, sy, sWidth, sHeight] = set.bbox;
-
-        try {
-            // First, get the 'Ours' video frame for the context image
-            const contextVideoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources['Ours']}`;
-            const contextVideo = await getVideoFrame(contextVideoPath, set.frameIdx);
-
-            // Draw the context frame with bbox
-            const ctxContext = contextCanvas.getContext('2d');
-            contextCanvas.width = contextVideo.videoWidth;
-            contextCanvas.height = contextVideo.videoHeight;
-            ctxContext.drawImage(contextVideo, 0, 0);
-            ctxContext.strokeStyle = 'red';
-            ctxContext.lineWidth = Math.max(2, contextVideo.videoWidth / 400); // Scale line width
-            ctxContext.strokeRect(sx, sy, sWidth, sHeight);
-
-            // Now, generate the crop for all sources
-            for (const key in set.sources) {
-                const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources[key]}`;
-                const videoFrame = await getVideoFrame(videoPath, set.frameIdx);
-
-                const cropItem = document.createElement('div');
-                cropItem.className = 'crop-item';
-                
-                const label = document.createElement('p');
-                label.textContent = key;
-                
-                const canvas = document.createElement('canvas');
-                canvas.width = sWidth;
-                canvas.height = sHeight;
-                const ctxCrop = canvas.getContext('2d');
-                ctxCrop.drawImage(videoFrame, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-
-                cropItem.appendChild(canvas);
-                cropItem.appendChild(label);
-                cropGallery.appendChild(cropItem);
-            }
-        } catch (error) {
-            console.error(`Failed to generate analysis panel for set ${set.index}:`, error);
-            container.querySelector('.analysis-panel').innerHTML = '<p>Error loading comparison assets.</p>';
-        }
-    }
-    
-    /**
-     * Initializes a single comparison block (slider and video sync).
-     */
-    function initializeComparison(container, set) {
-        const sliderElement = container.querySelector('.beer-slider');
+    function initializeSlider(container, set) {
+        const sliderElement = container.querySelector(`#slider-${set.index}`);
         const leftVideo = container.querySelector(`#video-left-${set.index}`);
         const rightVideo = container.querySelector(`#video-right-${set.index}`);
-
-        // 1. Initialize BeerSlider
+        
         new BeerSlider(sliderElement);
         
-        // 2. Synchronize videos
-        const syncVideos = (master, slave) => {
-            ['play', 'pause', 'seeking'].forEach(event => {
-                master.addEventListener(event, () => {
-                    if (event === 'play' && slave.paused) slave.play();
-                    if (event === 'pause' && !slave.paused) slave.pause();
-                    if (event === 'seeking') slave.currentTime = master.currentTime;
-                });
+        // Sync videos
+        ['play', 'pause', 'seeking'].forEach(event => {
+            leftVideo.addEventListener(event, () => {
+                if (event === 'play' && rightVideo.paused) rightVideo.play();
+                if (event === 'pause' && !rightVideo.paused) rightVideo.pause();
+                if (event === 'seeking') rightVideo.currentTime = leftVideo.currentTime;
             });
+        });
 
-            master.addEventListener('timeupdate', () => {
-                if (Math.abs(master.currentTime - slave.currentTime) > 0.1) {
-                    slave.currentTime = master.currentTime;
-                }
-            });
-        };
-        syncVideos(leftVideo, rightVideo);
+        leftVideo.addEventListener('timeupdate', () => {
+            if (Math.abs(leftVideo.currentTime - rightVideo.currentTime) > 0.1) {
+                rightVideo.currentTime = leftVideo.currentTime;
+            }
+        });
 
-        // 3. Start playing videos
-        leftVideo.play().catch(e => console.log("Autoplay was prevented. User must interact first."));
+        leftVideo.play().catch(e => console.log("Autoplay was prevented."));
         rightVideo.play().catch(e => console.log("Autoplay was prevented."));
     }
 
     /**
-     * Dynamically changes the video source in the slider.
+     * Generates the static frame with the bounding box.
+     * This logic is restored from the original working file.
+     */
+    function generateBboxFrame(container, set) {
+        const canvas = container.querySelector(`#canvas-${set.index}`);
+        const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources['Ours']}`; // Use 'Ours' as the base for the bbox frame
+        
+        if (!canvas || !set.bbox || set.frameIdx === undefined) return;
+        
+        const [x, y, w, h] = set.bbox;
+        const ctx = canvas.getContext('2d');
+        const hiddenVideo = document.createElement('video');
+        hiddenVideo.src = videoPath;
+        hiddenVideo.crossOrigin = 'anonymous';
+        hiddenVideo.muted = true;
+        
+        hiddenVideo.addEventListener('loadedmetadata', () => {
+            hiddenVideo.currentTime = set.frameIdx / 30; // assume 30fps
+        });
+        
+        hiddenVideo.addEventListener('seeked', () => {
+            const vw = hiddenVideo.videoWidth;
+            const vh = hiddenVideo.videoHeight;
+            canvas.width = vw;
+            canvas.height = vh;
+            ctx.drawImage(hiddenVideo, 0, 0, vw, vh);
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = Math.max(2, vw / 400);
+            ctx.strokeRect(x, y, w, h);
+        });
+        
+        hiddenVideo.load();
+    }
+    
+    /**
+     * Generates the new crop gallery for all sources.
+     */
+    async function generateCropGallery(container, set) {
+        const galleryContainer = container.querySelector('.crop-items-container');
+        if (!galleryContainer || !set.bbox || set.frameIdx === undefined) return;
+
+        const [sx, sy, sWidth, sHeight] = set.bbox;
+        
+        for (const key in set.sources) {
+            const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources[key]}`;
+            
+            const cropItem = document.createElement('div');
+            cropItem.className = 'crop-item';
+            
+            const label = document.createElement('p');
+            label.textContent = key;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = sWidth;
+            canvas.height = sHeight;
+            const ctx = canvas.getContext('2d');
+            
+            cropItem.appendChild(canvas);
+            cropItem.appendChild(label);
+            galleryContainer.appendChild(cropItem);
+
+            try {
+                const video = await new Promise((resolve, reject) => {
+                    const hiddenVideo = document.createElement('video');
+                    hiddenVideo.crossOrigin = 'anonymous';
+                    hiddenVideo.muted = true;
+                    hiddenVideo.addEventListener('seeked', () => resolve(hiddenVideo));
+                    hiddenVideo.addEventListener('error', (e) => reject(`Failed to load video: ${videoPath}`));
+                    hiddenVideo.src = videoPath;
+                    hiddenVideo.addEventListener('loadedmetadata', () => {
+                         hiddenVideo.currentTime = set.frameIdx / 30; // 30fps assumption
+                    });
+                });
+                ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            } catch (error) {
+                console.error(error);
+                ctx.fillStyle = '#666';
+                ctx.textAlign = 'center';
+                ctx.font = '14px sans-serif';
+                ctx.fillText('Error', sWidth / 2, sHeight / 2);
+            }
+        }
+    }
+
+    /**
+     * Handles changing the video source in the slider.
+     * This function is from the original working file.
      */
     function handleSourceChange(event) {
-        const button = event.target.closest('.video-select-btn');
-        if (!button) return;
+        if (!event.target.matches('.video-select-btn')) return;
 
+        const button = event.target;
         const { sliderIndex, side, sourceKey } = button.dataset;
+
         const videoId = `video-${side}-${sliderIndex}`;
         const videoEl = document.getElementById(videoId);
         if (!videoEl) return;
@@ -284,7 +262,6 @@
         const setConfig = videoData.find(s => s.index == sliderIndex);
         const newSrc = `${VIDEO_BASE_PATH}${sliderIndex}/${setConfig.sources[sourceKey]}`;
 
-        // Update slider labels
         const sliderEl = document.getElementById(`slider-${sliderIndex}`);
         const revealEl = sliderEl.querySelector('.beer-reveal');
         
@@ -293,27 +270,19 @@
         } else {
             revealEl.dataset.beerLabel = sourceKey;
         }
-        // Re-initialize slider to update labels correctly if needed, though often not necessary.
-        // A full re-init might be overkill, but library behavior can vary.
-        // new BeerSlider(sliderEl); // Usually not needed just for label change.
 
-        videoEl.src = newSrc;
+        videoEl.querySelector('source').setAttribute('src', newSrc);
         videoEl.load();
-        videoEl.play().catch(e => console.log("Autoplay was prevented after source change."));
-        
-        // Update active button state
-        const group = button.closest('.controls-group');
-        group.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
+        videoEl.play().catch(e => console.log("Autoplay prevented after source change."));
+
+        button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     }
 
-    /**
-     * Main setup function on DOMContentLoaded.
-     */
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('comparisons-root');
-        
-        // Lazy loading setup for the entire comparison block
+
+        // Lazy loading setup
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -323,15 +292,15 @@
                     
                     if (!container.dataset.initialized) {
                          container.dataset.initialized = "true";
-                         initializeComparison(container, set);
-                         generateAnalysisPanel(container, set);
+                         initializeSlider(container, set);
+                         generateBboxFrame(container, set);
+                         generateCropGallery(container, set);
                     }
                     observer.unobserve(container);
                 }
             });
         }, { rootMargin: "100px" });
 
-        // Create HTML structure for each comparison set
         videoData.forEach(set => {
             const videoSetBasePath = `${VIDEO_BASE_PATH}${set.index}/`;
 
@@ -339,10 +308,10 @@
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
                 const leftActiveClass = key === set.defaultLeft ? 'active' : '';
-                leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
+                rightButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
                 
                 const rightActiveClass = key === set.defaultRight ? 'active' : '';
-                rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+                leftButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
             });
 
             const comparisonBlock = document.createElement('div');
@@ -352,34 +321,35 @@
             comparisonBlock.innerHTML = `
                 <h2>${set.title}</h2>
                 <div class="comparison-row">
+                    <!-- Column 1: Slider (Original working implementation) -->
                     <div class="slider-box">
                         <div id="slider-${set.index}" class="beer-slider" data-beer-label="${set.defaultLeft}">
-                            <video id="video-left-${set.index}" loop muted playsinline preload="metadata" src="${videoSetBasePath}${set.sources[set.defaultLeft]}"></video>
+                            <video id="video-left-${set.index}" loop muted autoplay playsinline>
+                                <source src="${videoSetBasePath}${set.sources[set.defaultLeft]}" type="video/mp4">
+                            </video>
                             <div class="beer-reveal" data-beer-label="${set.defaultRight}">
-                                <video id="video-right-${set.index}" loop muted playsinline preload="metadata" src="${videoSetBasePath}${set.sources[set.defaultRight]}"></video>
+                                <video id="video-right-${set.index}" loop muted autoplay playsinline>
+                                    <source src="${videoSetBasePath}${set.sources[set.defaultRight]}" type="video/mp4">
+                                </video>
                             </div>
                         </div>
                         <div class="controls-panel">
-                            <div class="controls-row">
-                                <div class="controls-group">
-                                    <h4>Left Video</h4>
-                                    ${leftButtonsHTML}
-                                </div>
-                                <div class="controls-group">
-                                    <h4>Right Video</h4>
-                                    ${rightButtonsHTML}
-                                </div>
-                            </div>
+                            <div class="left-controls">${rightButtonsHTML}</div>
+                            <div class="right-controls">${leftButtonsHTML}</div>
                         </div>
                     </div>
-                    <div class="analysis-panel">
+
+                    <!-- Column 2: Bbox Frame (Original working implementation) -->
+                    <div class="canvas-box">
                         <h4>Context Frame</h4>
-                        <div class="context-frame">
-                           <canvas><!-- Context frame will be drawn here --></canvas>
-                        </div>
+                        <canvas id="canvas-${set.index}"></canvas>
+                    </div>
+
+                    <!-- Column 3: Crop Gallery (New feature) -->
+                    <div class="crop-gallery-box">
                         <h4>Region of Interest Crops</h4>
-                        <div class="crop-gallery">
-                            <!-- Crops will be generated here -->
+                        <div class="crop-items-container">
+                            <!-- Crop items will be generated here -->
                         </div>
                     </div>
                 </div>
@@ -387,7 +357,7 @@
             root.appendChild(comparisonBlock);
             observer.observe(comparisonBlock);
         });
-
+        
         root.addEventListener('click', handleSourceChange);
     });
     </script>
