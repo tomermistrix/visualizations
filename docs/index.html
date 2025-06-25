@@ -29,13 +29,14 @@
         .comparison-row {
             display: flex;
             gap: 20px;
+            align-items: flex-start; /* CHANGE 1: Prevents columns from stretching to match height */
         }
         .slider-box, .canvas-box {
             flex: 1;
         }
         .canvas-box canvas {
             width: 100%;
-            height: 100%;
+            height: auto; /* CHANGE 2: Allows canvas to maintain its aspect ratio */
             border: 1px solid #ccc;
             display: block;
         }
@@ -151,13 +152,6 @@
             frameIdx: 10,
             bbox: [0, 0, 100, 100]
         },
-        // {
-        //     index: 8,
-        //     title: "Interview",
-        //     sources: { 'Original': 'original.mp4', 'Ours': 'ours.mp4', 'H.264': 'h264.mp4', 'H.265': 'h265.mp4' },
-        //     defaultLeft: 'Ours',
-        //     defaultRight: 'H.264'
-        // }
     ];
 
     const VIDEO_BASE_PATH = 'assets/videos/';
@@ -171,19 +165,17 @@
             let leftButtonsHTML = '';
             let rightButtonsHTML = '';
             Object.keys(set.sources).forEach(key => {
-                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
-                rightButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
-                
                 const rightActiveClass = key === set.defaultRight ? 'active' : '';
-                leftButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+                rightButtonsHTML += `<button class="video-select-btn ${rightActiveClass}" data-slider-index="${set.index}" data-side="right" data-source-key="${key}">${key}</button>`;
+                
+                const leftActiveClass = key === set.defaultLeft ? 'active' : '';
+                leftButtonsHTML += `<button class="video-select-btn ${leftActiveClass}" data-slider-index="${set.index}" data-side="left" data-source-key="${key}">${key}</button>`;
             });
 
             const comparisonBlock = document.createElement('div');
             comparisonBlock.className = 'comparison-container';
 
-            const row = document.createElement('div');
-            row.className = 'comparison-row';
-
+            // We now build the inner content before appending to the row for clarity
             const sliderBox = document.createElement('div');
             sliderBox.className = 'slider-box';
             sliderBox.innerHTML = `
@@ -214,12 +206,13 @@
             const canvas = document.createElement('canvas');
             canvas.id = `canvas-${set.index}`;
             canvasBox.appendChild(canvas);
-            const controlPanelBlank = document.createElement('div');
-            controlPanelBlank.className = 'controls-panel';
-            canvasBox.appendChild(controlPanelBlank);
 
+            const row = document.createElement('div');
+            row.className = 'comparison-row';
             row.appendChild(sliderBox);
             row.appendChild(canvasBox);
+
+            comparisonBlock.innerHTML = `<h2>${set.title}</h2>`; // Add title
             comparisonBlock.appendChild(row);
 
             root.appendChild(comparisonBlock);
@@ -232,14 +225,13 @@
             const onVideoReady = () => {
                 if (++videosReady === 2) {
                     new BeerSlider(sliderElement);
-                    syncVideos(leftVideo, rightVideo);
+                    syncVideos(`video-left-${set.index}`, `video-right-${set.index}`);
                 }
             };
 
             leftVideo.addEventListener('loadedmetadata', onVideoReady);
             rightVideo.addEventListener('loadedmetadata', onVideoReady);
 
-            // Generate canvas preview with bbox
             if (set.bbox && set.frameIdx !== undefined) {
                 const [x, y, w, h] = set.bbox;
                 const ctx = canvas.getContext('2d');
@@ -263,15 +255,16 @@
                     ctx.strokeStyle = 'red';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(x, y, w, h);
+                    document.body.removeChild(hiddenVideo); // Clean up the hidden video
                 });
 
                 hiddenVideo.load();
             }
         });
         root.addEventListener('click', handleSourceChange);
-        
     });
-function syncVideos(masterId, slaveId) {
+
+    function syncVideos(masterId, slaveId) {
         const master = document.getElementById(masterId);
         const slave = document.getElementById(slaveId);
         if (!master || !slave) return;
@@ -307,34 +300,40 @@ function syncVideos(masterId, slaveId) {
         const otherSide = side === 'left' ? 'right' : 'left';
         const otherVideoEl = document.getElementById(`video-${otherSide}-${sliderIndex}`);
 
-        // FIX 2: Correctly target and update slider labels
         const sliderEl = document.getElementById(`slider-${sliderIndex}`);
         const revealEl = sliderEl.querySelector('.beer-reveal');
         
         if (side === 'left') {
             sliderEl.dataset.beerLabel = sourceKey;
-            // The library creates a .beer-handle div for the label, so we update its text
-            sliderEl.querySelector('.beer-handle').textContent = sourceKey;
         } else {
             revealEl.dataset.beerLabel = sourceKey;
-            // The library does NOT auto-update the reveal label text, so we do nothing here
-            // as the library doesn't expose a visible reveal label by default.
         }
 
         videoEl.querySelector('source').setAttribute('src', newSrc);
         videoEl.load();
         
-        // Ensure both videos attempt to play after the new source is loaded
         const playPromise = videoEl.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
-                otherVideoEl.play(); // Sync the other video's playback
+                otherVideoEl.play();
             }).catch(error => {
                 console.error("Autoplay was prevented:", error);
-                // Autoplay was prevented, but the source is still changed.
             });
         }
+        
+        button.closest('.controls-panel').querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // Activate the correct buttons in both panels
+        const leftButton = button.closest('.comparison-row').querySelector(`.left-controls .video-select-btn[data-source-key="${sourceKey}"]`);
+        const rightButton = button.closest('.comparison-row').querySelector(`.right-controls .video-select-btn[data-source-key="${sourceKey}"]`);
 
+        if(side === 'left' && leftButton) {
+            leftButton.classList.add('active');
+        } else if (side === 'right' && rightButton) {
+            rightButton.classList.add('active');
+        }
+        // This logic is a bit tangled due to the button duplication. A better approach would be to have one set of buttons per video side.
+        // For now, let's simplify button activation.
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     }
