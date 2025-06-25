@@ -207,6 +207,8 @@
             const topRow = document.createElement('div');
             topRow.className = 'top-row';
             
+            const sliderWrapper = document.createElement('div');
+            sliderWrapper.innerHTML = `<h4>Interactive Video Comparison</h4>`;
             const sliderElement = document.createElement('div');
             sliderElement.id = `slider-${set.index}`;
             sliderElement.className = 'beer-slider';
@@ -221,14 +223,16 @@
                     </video>
                 </div>
             `;
-            
+
+            sliderWrapper.appendChild(sliderElement);
+            canvasBox.innerHTML = `<h4>Context Frame</h4>`;
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
             const canvas = document.createElement('canvas');
             canvas.id = `canvas-${set.index}`;
             canvasBox.appendChild(canvas);
 
-            topRow.appendChild(sliderElement);
+            topRow.appendChild(sliderWrapper);
             topRow.appendChild(canvasBox);
             
             const bottomRow = document.createElement('div');
@@ -381,6 +385,17 @@
 
         button.parentElement.querySelectorAll('.video-select-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
+        const leftVideoToReset = document.getElementById(`video-left-${sliderIndex}`);
+        const rightVideoToReset = document.getElementById(`video-right-${sliderIndex}`);
+
+        if (leftVideoToReset && rightVideoToReset) {
+            leftVideoToReset.currentTime = 0;
+            rightVideoToReset.currentTime = 0;
+            
+            // Also ensure they attempt to play again from the start
+            leftVideoToReset.play().catch(e => {});
+            rightVideoToReset.play().catch(e => {});
+        }
     }
     </script>
 </body>
