@@ -27,31 +27,32 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 40px;
-            min-height: 400px; /* Placeholder height for lazy loading */
+            /* Placeholder height for lazy loading ensures no layout shift */
+            min-height: 450px; 
         }
         .comparison-row {
             display: flex;
             gap: 20px;
-            align-items: flex-start; /* Fixes vertical alignment mismatch */
+            align-items: flex-start;
         }
         .slider-box {
             flex: 2; /* Give slider more space */
-            position: relative; /* For positioning the bbox overlay */
         }
-        .crop-gallery-box {
-            flex: 1; /* Give crop gallery less space */
+        .analysis-panel {
+            flex: 1; /* Give analysis panel less space */
+        }
+        .context-frame canvas, .crop-item canvas {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            display: block;
+            background-color: #f0f0f0; /* bg color for loading state */
         }
         .crop-gallery {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
             text-align: center;
-        }
-        .crop-item canvas {
-            width: 100%;
-            height: auto;
-            border: 1px solid #ddd;
-            display: block;
         }
         .crop-item p {
             margin: 5px 0 0 0;
@@ -60,8 +61,8 @@
         }
         .beer-slider video, .beer-reveal video {
             width: 100%;
-            height: auto; /* Changed from 100% to auto for correct aspect ratio */
-            object-fit: contain; /* Use contain to see the whole frame */
+            height: auto;
+            object-fit: contain;
             display: block;
         }
         .beer-handle {
@@ -101,19 +102,11 @@
             border-color: #0366d6;
             font-weight: bold;
         }
-        .bbox-overlay {
-            position: absolute;
-            border: 2px solid rgba(255, 0, 0, 0.8);
-            box-sizing: border-box;
-            pointer-events: none; /* Allows clicking through the overlay */
-            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
-            transition: all 0.2s ease-in-out;
-        }
     </style>
 </head>
 <body>
     <h1>Video Compression Comparison</h1>
-    <p>Each section below compares video compression methods. Use the slider to compare two videos in motion. The red box on the slider highlights a region of interest, which is shown as static, zoomed-in crops from all methods in the gallery on the right.</p>
+    <p>Each section compares video methods. Use the slider on the left for a dynamic comparison. The panel on the right provides a static analysis: a context frame shows the region of interest (red box), and the gallery below shows detailed, zoomed-in crops from all sources for that region.</p>
     <div id="comparisons-root"></div>
 
     <script src="https://unpkg.com/beerslider/dist/BeerSlider.js"></script>
@@ -169,96 +162,81 @@
     const VIDEO_BASE_PATH = 'assets/videos/';
 
     /**
-     * Creates the crop gallery for a single comparison set.
+     * Creates and returns a promise that resolves with a specific frame from a video.
      */
-    async function generateCropGallery(container, set) {
+    function getVideoFrame(videoPath, frameIdx) {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.crossOrigin = 'anonymous';
+            video.muted = true;
+            
+            video.addEventListener('loadedmetadata', () => {
+                video.currentTime = frameIdx / 30; // Assuming 30fps
+            });
+            
+            video.addEventListener('seeked', () => resolve(video));
+
+            video.addEventListener('error', (e) => reject(`Error loading video: ${videoPath}`));
+            
+            video.src = videoPath;
+        });
+    }
+
+    /**
+     * Initializes the entire analysis panel (context + crops).
+     */
+    async function generateAnalysisPanel(container, set) {
+        if (!set.bbox || set.frameIdx === undefined) return;
+
+        const contextCanvas = container.querySelector('.context-frame canvas');
         const cropGallery = container.querySelector('.crop-gallery');
-        if (!cropGallery || !set.bbox || set.frameIdx === undefined) return;
+        if (!contextCanvas || !cropGallery) return;
 
         const [sx, sy, sWidth, sHeight] = set.bbox;
-        
-        for (const key in set.sources) {
-            const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources[key]}`;
-            
-            const cropItem = document.createElement('div');
-            cropItem.className = 'crop-item';
-            
-            const label = document.createElement('p');
-            label.textContent = key;
-            
-            const canvas = document.createElement('canvas');
-            canvas.width = sWidth;
-            canvas.height = sHeight;
-            cropItem.appendChild(canvas);
-            cropItem.appendChild(label);
-            cropGallery.appendChild(cropItem);
 
-            const ctx = canvas.getContext('2d');
+        try {
+            // First, get the 'Ours' video frame for the context image
+            const contextVideoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources['Ours']}`;
+            const contextVideo = await getVideoFrame(contextVideoPath, set.frameIdx);
 
-            // Use a promise to handle video loading asynchronously
-            await new Promise((resolve, reject) => {
-                const hiddenVideo = document.createElement('video');
-                hiddenVideo.crossOrigin = 'anonymous';
-                hiddenVideo.muted = true;
+            // Draw the context frame with bbox
+            const ctxContext = contextCanvas.getContext('2d');
+            contextCanvas.width = contextVideo.videoWidth;
+            contextCanvas.height = contextVideo.videoHeight;
+            ctxContext.drawImage(contextVideo, 0, 0);
+            ctxContext.strokeStyle = 'red';
+            ctxContext.lineWidth = Math.max(2, contextVideo.videoWidth / 400); // Scale line width
+            ctxContext.strokeRect(sx, sy, sWidth, sHeight);
 
-                hiddenVideo.addEventListener('loadedmetadata', () => {
-                    hiddenVideo.currentTime = set.frameIdx / 30; // Assuming 30fps
-                });
+            // Now, generate the crop for all sources
+            for (const key in set.sources) {
+                const videoPath = `${VIDEO_BASE_PATH}${set.index}/${set.sources[key]}`;
+                const videoFrame = await getVideoFrame(videoPath, set.frameIdx);
 
-                hiddenVideo.addEventListener('seeked', () => {
-                    ctx.drawImage(hiddenVideo, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-                    resolve();
-                });
+                const cropItem = document.createElement('div');
+                cropItem.className = 'crop-item';
+                
+                const label = document.createElement('p');
+                label.textContent = key;
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = sWidth;
+                canvas.height = sHeight;
+                const ctxCrop = canvas.getContext('2d');
+                ctxCrop.drawImage(videoFrame, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
 
-                hiddenVideo.addEventListener('error', (e) => {
-                    console.error(`Error loading video for crop: ${videoPath}`, e);
-                    ctx.fillStyle = '#eee';
-                    ctx.fillRect(0, 0, sWidth, sHeight);
-                    ctx.fillStyle = '#666';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Error', sWidth / 2, sHeight / 2);
-                    reject(e);
-                });
-
-                hiddenVideo.src = videoPath;
-                hiddenVideo.load();
-            }).catch(e => console.error(e));
+                cropItem.appendChild(canvas);
+                cropItem.appendChild(label);
+                cropGallery.appendChild(cropItem);
+            }
+        } catch (error) {
+            console.error(`Failed to generate analysis panel for set ${set.index}:`, error);
+            container.querySelector('.analysis-panel').innerHTML = '<p>Error loading comparison assets.</p>';
         }
     }
     
     /**
-     * Positions the bounding box overlay based on video dimensions.
-     */
-    function positionBboxOverlay(container, set) {
-        const videoEl = container.querySelector(`#video-left-${set.index}`);
-        const overlay = container.querySelector('.bbox-overlay');
-        if (!videoEl || !overlay || !set.bbox) return;
-
-        const updatePosition = () => {
-            const videoRect = videoEl.getBoundingClientRect();
-            const scaleX = videoRect.width / videoEl.videoWidth;
-            const scaleY = videoRect.height / videoEl.videoHeight;
-
-            const [x, y, w, h] = set.bbox;
-            overlay.style.left = `${x * scaleX}px`;
-            overlay.style.top = `${y * scaleY}px`;
-            overlay.style.width = `${w * scaleX}px`;
-            overlay.style.height = `${h * scaleY}px`;
-        };
-
-        if (videoEl.readyState >= 1) { // METADATA LOADED
-            updatePosition();
-        } else {
-            videoEl.addEventListener('loadedmetadata', updatePosition, { once: true });
-        }
-        
-        // Optional: Add resize observer for responsive adjustments
-        new ResizeObserver(updatePosition).observe(videoEl);
-    }
-    
-    /**
-     * Initializes a single comparison block (slider, sync, crops, bbox).
-     * This function is called by the IntersectionObserver.
+     * Initializes a single comparison block (slider and video sync).
      */
     function initializeComparison(container, set) {
         const sliderElement = container.querySelector('.beer-slider');
@@ -286,13 +264,7 @@
         };
         syncVideos(leftVideo, rightVideo);
 
-        // 3. Position the bounding box overlay
-        positionBboxOverlay(container, set);
-
-        // 4. Generate the crop gallery
-        generateCropGallery(container, set);
-
-        // 5. Start playing videos
+        // 3. Start playing videos
         leftVideo.play().catch(e => console.log("Autoplay was prevented. User must interact first."));
         rightVideo.play().catch(e => console.log("Autoplay was prevented."));
     }
@@ -318,13 +290,14 @@
         
         if (side === 'left') {
             sliderEl.dataset.beerLabel = sourceKey;
-            const handle = sliderEl.querySelector('.beer-handle');
-            if (handle) handle.textContent = sourceKey;
         } else {
             revealEl.dataset.beerLabel = sourceKey;
         }
+        // Re-initialize slider to update labels correctly if needed, though often not necessary.
+        // A full re-init might be overkill, but library behavior can vary.
+        // new BeerSlider(sliderEl); // Usually not needed just for label change.
 
-        videoEl.src = newSrc; // Setting src directly is more reliable than child source element
+        videoEl.src = newSrc;
         videoEl.load();
         videoEl.play().catch(e => console.log("Autoplay was prevented after source change."));
         
@@ -340,7 +313,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('comparisons-root');
         
-        // Lazy loading setup
+        // Lazy loading setup for the entire comparison block
         const observer = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -348,15 +321,15 @@
                     const setIndex = container.dataset.setIndex;
                     const set = videoData.find(s => s.index == setIndex);
                     
-                    // Mark as initialized to prevent re-running
                     if (!container.dataset.initialized) {
                          container.dataset.initialized = "true";
                          initializeComparison(container, set);
+                         generateAnalysisPanel(container, set);
                     }
                     observer.unobserve(container);
                 }
             });
-        }, { rootMargin: "50px" }); // Start loading when 50px away from viewport
+        }, { rootMargin: "100px" });
 
         // Create HTML structure for each comparison set
         videoData.forEach(set => {
@@ -386,7 +359,6 @@
                                 <video id="video-right-${set.index}" loop muted playsinline preload="metadata" src="${videoSetBasePath}${set.sources[set.defaultRight]}"></video>
                             </div>
                         </div>
-                        <div class="bbox-overlay"></div>
                         <div class="controls-panel">
                             <div class="controls-row">
                                 <div class="controls-group">
@@ -400,19 +372,22 @@
                             </div>
                         </div>
                     </div>
-                    <div class="crop-gallery-box">
-                        <h4>Region of Interest</h4>
+                    <div class="analysis-panel">
+                        <h4>Context Frame</h4>
+                        <div class="context-frame">
+                           <canvas><!-- Context frame will be drawn here --></canvas>
+                        </div>
+                        <h4>Region of Interest Crops</h4>
                         <div class="crop-gallery">
-                            <!-- Crops will be generated here by JS -->
+                            <!-- Crops will be generated here -->
                         </div>
                     </div>
                 </div>
             `;
             root.appendChild(comparisonBlock);
-            observer.observe(comparisonBlock); // Watch this block for lazy loading
+            observer.observe(comparisonBlock);
         });
 
-        // Add single event listener for all button clicks
         root.addEventListener('click', handleSourceChange);
     });
     </script>
