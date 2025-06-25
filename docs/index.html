@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Compression Comparison</title>
+    <title>Generative Diffusion-Based Video Compression: High-Quality Video at a Lower Bitrate</title>
     <link rel="stylesheet" href="https://unpkg.com/beerslider/dist/BeerSlider.css">
     <style>
         body {
@@ -18,6 +18,9 @@
         h1, h2, h3 {
             border-bottom: 1px solid #eaecef;
             padding-bottom: .3em;
+        }
+        h1 {
+            text-align: center;
         }
         .comparison-container {
             background: #fff;
@@ -85,7 +88,17 @@
     </style>
 </head>
 <body>
-    <h1>Video Compression Comparison</h1>
+    <h1>Generative Diffusion-Based Video Compression: High-Quality Video at a Lower Bitrate</h1>
+    <div style="max-width: 800px; margin: 30px auto; padding: 15px; background-color: #fff; border: 1px solid #e1e4e8; border-radius: 6px;">
+    <h3 style="text-align: center; border-bottom: none; margin-top: 0;">About This Visualization</h3>
+    <p>This page showcases a new video compression technique powered by a pretrained diffusion model. To provide a fair "apples-to-apples" comparison, we've benchmarked our method against the standard <strong>H.264</strong> and <strong>H.265</strong> codecs at a <strong>matched bitrate</strong>.</p>
+    <p>For each example, the process is as follows:</p>
+    <ol style="padding-left: 20px;">
+        <li>The original video is compressed using <strong>Our Method</strong>. We measure its final file size.</li>
+        <li>We then use that file size as a target bitrate for H.264 and H.265, compressing the same original video until their file sizes match ours.</li>
+    </ol>
+    <p>Because all compressed videos have the same data budget, you can directly compare their visual quality. A superior method will exhibit fewer artifacts and greater detail for the same file size.</p>
+</div>
     <div id="comparisons-root"></div>
     <script src="https://unpkg.com/beerslider/dist/BeerSlider.js"></script>
     <script>
