@@ -350,6 +350,7 @@
         const button = event.target;
         const { sliderIndex, side, sourceKey } = button.dataset;
 
+        side = side === 'left' ? 'right' : 'left';
         const videoId = `video-${side}-${sliderIndex}`;
         const videoEl = document.getElementById(videoId);
         if (!videoEl) return;
