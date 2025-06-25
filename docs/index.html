@@ -225,15 +225,17 @@
             `;
             
             sliderWrapper.appendChild(sliderElement);
+            const canvasWrapper = document.createElement('div');
+            canvasWrapper.innerHTML = `<h4>Context Frame</h4>`;
             const canvasBox = document.createElement('div');
             canvasBox.className = 'canvas-box';
-            canvasBox.innerHTML = `<h4>Context Frame</h4>`;
             const canvas = document.createElement('canvas');
             canvas.id = `canvas-${set.index}`;
             canvasBox.appendChild(canvas);
+            canvasWrapper.appendChild(canvasBox);
 
             topRow.appendChild(sliderWrapper);
-            topRow.appendChild(canvasBox);
+            topRow.appendChild(canvasWrapper);
             
             const bottomRow = document.createElement('div');
             bottomRow.className = 'bottom-row';
